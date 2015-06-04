@@ -23,6 +23,7 @@ import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.text.Html;
 import android.text.method.LinkMovementMethod;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -44,7 +45,7 @@ public class MainActivity extends Activity {
 	private Spinner pythonVersionSpinner;
 	private Spinner overwriteModeSpinner;
 
-	static final String SCRIPTS2 = "/com.hipipal.qpyplus/scripts"; 
+	static final String SCRIPTS = "/com.hipipal.qpyplus"; 
 	static final int PYTHON2 = 0;
 //	static final int PYTHON3 = 1;
 	static final int OVERWRITE_NO = 0;
@@ -207,6 +208,11 @@ public class MainActivity extends Activity {
     	super.onResume();
     	showInstructions();
     }
+    
+    static void recursiveDelete(String name) {
+    	Log.v("droidjam", "recursive delete of "+name);
+    	recursiveDelete(new File(name));
+    }
 
     static void recursiveDelete(File branch) {
     	if (! branch.exists())
@@ -245,19 +251,18 @@ public class MainActivity extends Activity {
 		@Override
 		protected Boolean doInBackground(Void... opt) {
 			String rootDir = Environment.getExternalStorageDirectory().getPath();
-			String scriptDir = rootDir+SCRIPTS2;
+			String scriptDir = rootDir+SCRIPTS;
 			String pyVer = "2";
 //			if (options.getInt(PREF_PYTHON_VERSION, PYTHON2) == PYTHON3) {
 //				scriptDir += "3";
 //				pyVer = "3";
 //			}
 			int overwrite = options.getInt(PREF_OVERWRITE_MODE, OVERWRITE_YES);
-			File base = new File(scriptDir);
 			if (overwrite == OVERWRITE_DELETE) {
 				publishProgress("Cleaning");
-				recursiveDelete(base);
+				recursiveDelete(scriptDir+"/scripts");
 			}
-			base.mkdirs();
+			new File(scriptDir).mkdirs();
 			AssetManager assets = context.getAssets();
 						
 			ZipInputStream zip = null;
@@ -308,7 +313,7 @@ public class MainActivity extends Activity {
 		protected void onPostExecute(Boolean success) {
 			if (success != null && success) {
 				Intent intent = new Intent("net.zhuoweizhang.mcpelauncher.action.IMPORT_SCRIPT");
-				String path = Environment.getExternalStorageDirectory().getPath()+"/"+SCRIPTS2+"/"+"raspberryjampe.js";
+				String path = Environment.getExternalStorageDirectory().getPath()+"/"+SCRIPTS+"/"+"raspberryjampe.js";
 				intent.setDataAndType(Uri.fromFile(new File(path)), "text/plain");			
 				context.startActivity(intent);
 			}

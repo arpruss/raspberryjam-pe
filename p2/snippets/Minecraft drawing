@@ -1,0 +1,7 @@
+from drawing import *
+
+d = Drawing()
+playerPos = d.mc.player.getPos()
+
+
+d.mc.postToChat('Script done')

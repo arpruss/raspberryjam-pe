@@ -1,0 +1,9 @@
+from drawing import *
+
+t = Turtle()
+t.penwidth(1)
+t.pendelay(0)
+t.penblock(GOLD_BLOCK)
+
+
+d.mc.postToChat('Script done')

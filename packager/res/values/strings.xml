@@ -8,7 +8,7 @@
 <string-array name="overwrite_modes">
         <item>Never overwrite scripts</item>
         <item>Overwrite scripts</item>
-        <item>Clean out script folder first</item>
+        <item>First clear old scripts</item>
         <item>Only install mod, no scripts</item>
         </string-array>
 </resources>
