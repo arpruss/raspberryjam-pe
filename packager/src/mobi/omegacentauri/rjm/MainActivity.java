@@ -194,12 +194,14 @@ public class MainActivity extends Activity {
 		ViewGroup install = (ViewGroup)findViewById(R.id.install);
 		install.setVisibility(haveAll ? View.VISIBLE : View.INVISIBLE);
     	tv = (TextView)findViewById(R.id.instructions2);
+    	tv.setMovementMethod(LinkMovementMethod.getInstance());
 		message = "";		
 		message += "<p>5. Go to "+bl+", make sure screen is in landcape mode (it may crash in portrait) and tap on the wrench button.</p>";
 		message += "<p>6. Choose 'Manage ModPE Scripts', and make sure switch is on 'ON'.</p>";
 		message += "<p>7. Tap on 'raspberryjampe.js' and choose 'Enable'.</p>";
 		message += "<p>8. Press BACK and then start Minecraft PE inside BlockLauncher with 'Play'.</p>";
 		message += "<p>9. Switch between Minecraft and QPython to run scripts.</p>";
+		message += "<p>10. For more information, see my <a href='http://www.instructables.com/id/Python-Coding-for-Android-Minecraft-PE/'>Instructable</a>.</p>";
 		tv.setText(Html.fromHtml(message));		
     }
     
