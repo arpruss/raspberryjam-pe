@@ -74,10 +74,12 @@ function updateSpawnPos() {
 
    newWorld = 0;
 
-   spawnX = parseInt(Math.round(Player.getX()));
+   android.util.Log.v("droidjam", "initial position is "+Player.getX()+" "+Player.getY()+" "+Player.getZ());
+
+   spawnX = parseInt(Math.floor(Player.getX()));
    ModPE.saveData(worldDir+".spawnX", spawnX);
    y = Player.getY();
-   if (y != 128) {
+   if (y <= 127) {
        spawnY = parseInt(Math.round(y - PLAYER_HEIGHT));
        ModPE.saveData(worldDir+".spawnY", spawnY);
    }
@@ -85,7 +87,7 @@ function updateSpawnPos() {
        spawnY = 0;
        needSpawnY = 1;
    }
-   spawnZ = parseInt(Math.round(Player.getZ()));
+   spawnZ = parseInt(Math.floor(Player.getZ()));
    ModPE.saveData(worldDir+".spawnZ", spawnZ);
    android.util.Log.v("droidjam", "defining spawn position as "+spawnX+" "+spawnY+" "+spawnZ);
 }
@@ -249,6 +251,20 @@ function entityZ(id) {
    return Entity.getZ(id);
 }
 
+function entitySetPosition(id, x,y,z) {
+     var y2;
+     if (id == playerId) {
+         y2 = PLAYER_HEIGHT+parseFloat(y);
+     }
+     else {
+         y2 = args[2];
+     }
+     Entity.setVelX(id,0);
+     Entity.setVelY(id,0);
+     Entity.setVelZ(id,0);
+     Entity.setPosition(id,spawnX+x,spawnY+y2,spawnZ+z);
+}
+
 
 function playerX() {
    return Player.getX() - spawnX;
@@ -276,13 +292,9 @@ function procCmd(cmdLine) {
         }
     }
     else if (cmds[0] == "tp" && cmds.length >= 4) {
-        var x = playerX();
-        var y = playerY();
-        var z = playerZ();
-        Entity.setVelX(playerId,0);
-        Entity.setVelY(playerId,0);
-        Entity.setVelZ(playerId,0);
-        Entity.setPosition(playerId,posDesc(cmds[1],x),posDesc(cmds[2],y),posDesc(cmds[3],z));
+        entitySetPosition(playerId,posDesc(cmds[1],playerX()),
+            posDesc(cmds[2],playerY()),
+            posDesc(cmds[3],playerZ()));
     }
     else if ((cmds[0] == "py" || cmds[0] == "python") && cmds.length >= 2) {
         var context = com.mojang.minecraftpe.MainActivity.currentMainActivity.get();
@@ -408,20 +420,6 @@ function entityGetDirection(id) {
    var z = Math.cos(-pitch) * Math.cos(-yaw);
    var y = Math.sin(-pitch);
    writer.println(""+x+","+y+","+z);
-}
-
-function entitySetPosition(id, x,y,z) {
-     var y2;
-     if (id == playerId) {
-         y2 = PLAYER_HEIGHT+parseFloat(y);
-     }
-     else {
-         y2 = args[2];
-     }
-     Entity.setVelX(id,0);
-     Entity.setVelY(id,0);
-     Entity.setVelZ(id,0);
-     Entity.setPosition(id,spawnX+x,spawnY+y2,spawnZ+z);
 }
 
 function handleCommand(cmd) {
@@ -623,8 +621,12 @@ function modTick() {
     if (needSpawnY && Player.getY() < 128) {
         needSpawnY = 0;
         spawnY = parseInt(Math.round(Player.getY()-PLAYER_HEIGHT));
-        ModPE.saveData(worldDir+".spawnY", spawnY);
         android.util.Log.v("droidjam", "spawnY = "+spawnY);
+        while (spawnY > 0 && Level.getTile(spawnX,spawnY-1,spawnZ) == 0) {
+            spawnY--;
+        }
+        ModPE.saveData(worldDir+".spawnY", spawnY);
+        android.util.Log.v("droidjam", "adjusted spawnY = "+spawnY);
     }
 //    for (i = 0 ; i < noAIs.length ; i++) {
 //        e = noAIs[i];
