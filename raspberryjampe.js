@@ -1,46 +1,6 @@
 // droidjam.js (c) 2015 by Alexander R. Pruss
 //
 // License: MIT / X11
-//
-// Permission is hereby granted, free of charge, to any person
-// obtaining a copy of this software and associated documentation
-// files (the "Software"), to deal in the Software without
-// restriction, including without limitation the rights to use,
-// copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following
-// conditions:
-//
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-// OTHER DEALINGS IN THE SOFTWARE.
-
-
-// Done:
-// chat.post, world.setBlock, world.setBlocks, world.getBlock, world.getBlockWithData,
-// player.setTile, player.setPos, player.setRotation, player.setPitch, player.getPitch,
-// player.getRotation, world.getPlayerIds, entity.setPos, entity.setTile, entity.getPos,
-// entity.getTile, world.spawnEntity, world.removeEntity, world.getHeight, events.block.hits,
-// events.clear, events.setting, events.chat.posts, entity.getPitch, entity.getRotation,
-// player.setDirection, player.getDirection, camera.setFollow, camera.setNormal, camera.getEntityId
-
-// Not done:
-// world.setting,
-//
-
-// Divergences and to dos:
-// The positions are NOT relative to the spawn point.
-// Chat posts from server return -1 as the callback function doesn't specify the speaker.
-// world.spawnEntity() does not support NBT tag.
-
 
 // 20 is reliable
 // 80 seems OK
@@ -57,10 +17,17 @@ var writer;
 var thread;
 var running;
 
+var immutable = 0;
+var worldDir = "undefined";
 var hitRestrictedToSword = 1;
 var blockQueue = [];
 var hitData = [];
 var chatData = [];
+var newWorld = 1;
+var needSpawnY = 0;
+var spawnX;
+var spawnY;
+var spawnZ;
 var playerId;
 //var noAIs = [];
 var ENTITIES = {
@@ -96,6 +63,46 @@ function setCamera(id) {
    camera = id;
 }
 
+function updateSpawnPos() {
+   if (! newWorld && "" != ModPE.readData(worldDir+".spawnX")) {
+       spawnX = parseInt(ModPE.readData(worldDir+".spawnX"));
+       spawnY = parseInt(ModPE.readData(worldDir+".spawnY"));
+       spawnZ = parseInt(ModPE.readData(worldDir+".spawnZ"));
+       android.util.Log.v("droidjam", "read spawn position as "+spawnX+" "+spawnY+" "+spawnZ);
+       return;
+   }
+
+   newWorld = 0;
+
+   spawnX = parseInt(Math.round(Player.getX()));
+   ModPE.saveData(worldDir+".spawnX", spawnX);
+   y = Player.getY();
+   if (y != 128) {
+       spawnY = parseInt(Math.round(y - PLAYER_HEIGHT));
+       ModPE.saveData(worldDir+".spawnY", spawnY);
+   }
+   else {
+       spawnY = 0;
+       needSpawnY = 1;
+   }
+   spawnZ = parseInt(Math.round(Player.getZ()));
+   ModPE.saveData(worldDir+".spawnZ", spawnZ);
+   android.util.Log.v("droidjam", "defining spawn position as "+spawnX+" "+spawnY+" "+spawnZ);
+}
+
+function selectLevelHook() {
+   android.util.Log.v("droidjam", "selectLevel");
+   worldDir = Level.getWorldDir();
+   var f = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()+"/games/com.mojang/minecraftWorlds/"+worldDir);
+   if (f.listFiles()) {
+       newWorld = 0;
+   }
+   else {
+       newWorld = 1;
+       android.util.Log.v("droidjam", "new world");
+   }
+}
+
 function newLevel(hasLevel) {
    android.util.Log.v("droidjam", "newLevel "+hasLevel);
    running = 1;
@@ -103,6 +110,7 @@ function newLevel(hasLevel) {
    thread.start();
    playerId = Player.getEntity();
    setCamera(playerId);
+   updateSpawnPos();
 }
 
 function sync(f) {
@@ -125,7 +133,7 @@ function _addChat(data) {
 
 function _getAndClearHits() {
     var out = "";
-    for (i = 0; i < hitData.length ; i++) {
+    for (var i = 0; i < hitData.length ; i++) {
         if (i > 0) {
             out += "|";
         }
@@ -137,7 +145,7 @@ function _getAndClearHits() {
 
 function _getAndClearChats() {
     var out = "";
-    for (i = 0; i < chatData.length ; i++) {
+    for (var i = 0; i < chatData.length ; i++) {
         if (i > 0) {
             out += "|";
         }
@@ -169,8 +177,23 @@ eventSync = {
           restrictToSword: _restrictToSword };
 
 function useItem(x,y,z,itemId,blockId,side) {
+   if (immutable) {
+       preventDefault();
+   }
    if (! hitRestrictedToSword || itemId == 267 || itemId == 268 || itemId == 272 || itemId == 276 || itemId == 283) {
        eventSync.addHit([x,y,z,side,playerId]);
+   }
+}
+
+function destroyBlock(x,y,z,side) {
+   if (immutable) {
+       preventDefault();
+   }
+}
+
+function startDestroyBlock(x,y,z,side) {
+   if (immutable) {
+       preventDefault();
    }
 }
 
@@ -202,13 +225,41 @@ function posDesc(desc,x) {
 
 function quotedList(args) {
     var out = "";
-    for (i = 0; i < args.length ; i++) {
+    for (var i = 0; i < args.length ; i++) {
         if (i > 0) {
             out += ",";
         }
         out += "'"+args[i].replace("\\", "\\\\").replace("'", "\\'")+"'";
     }
     return out;
+}
+
+function entityX(id) {
+   return Entity.getX(id) - spawnX;
+}
+
+function entityY(id) {
+   if (id == playerId) 
+       return Entity.getY(id) - PLAYER_HEIGHT - spawnY;
+   else
+       return Entity.getY(id) - spawnY;
+}
+
+function entityZ(id) {
+   return Entity.getZ(id);
+}
+
+
+function playerX() {
+   return Player.getX() - spawnX;
+}
+
+function playerY() {
+   return Player.getY() - PLAYER_HEIGHT - spawnY;
+}
+
+function playerZ() {
+   return Player.getZ() - spawnZ;
 }
 
 function procCmd(cmdLine) {
@@ -225,9 +276,9 @@ function procCmd(cmdLine) {
         }
     }
     else if (cmds[0] == "tp" && cmds.length >= 4) {
-        x = Player.getX();
-        y = Player.getY()-PLAYER_HEIGHT;
-        z = Player.getZ();
+        var x = playerX();
+        var y = playerY();
+        var z = playerZ();
         Entity.setVelX(playerId,0);
         Entity.setVelY(playerId,0);
         Entity.setVelZ(playerId,0);
@@ -359,6 +410,20 @@ function entityGetDirection(id) {
    writer.println(""+x+","+y+","+z);
 }
 
+function entitySetPosition(id, x,y,z) {
+     var y2;
+     if (id == playerId) {
+         y2 = PLAYER_HEIGHT+parseFloat(y);
+     }
+     else {
+         y2 = args[2];
+     }
+     Entity.setVelX(id,0);
+     Entity.setVelY(id,0);
+     Entity.setVelZ(id,0);
+     Entity.setPosition(id,spawnX+x,spawnY+y2,spawnZ+z);
+}
+
 function handleCommand(cmd) {
    cmd = cmd.trim();
    var n = cmd.indexOf("(");
@@ -376,46 +441,26 @@ function handleCommand(cmd) {
        setBlocks(args);
    }
    else if (m == "player.getPos") {
-       writer.println(""+Player.getX()+","+(Player.getY()-PLAYER_HEIGHT)+","+Player.getZ());
+       writer.println(""+playerX()+","+playerY()+","+playerZ());
    }
    else if (m == "player.getTile") {
-       writer.println(""+Math.floor(Player.getX())+","+Math.round(Player.getY()-PLAYER_HEIGHT)+","+Math.floor(Player.getZ()));
+       // maybe others should be rounded, too?
+       writer.println(""+Math.floor(playerX())+","+Math.round(playerY())+","+Math.floor(playerZ()));
    }
    else if (m == "entity.getPos") {
-       y = Entity.getY(args[0]);
-       if (args[0] == playerId) {
-           y -= PLAYER_HEIGHT;
-       }
-       writer.println(Entity.getX(args[0])+","+y+","+Entity.getZ(args[0]));
+       writer.println(entityX(args[0])+","+entityY(args[0])+","+entityZ(args[0]));
    }
    else if (m == "entity.getTile") {
-       y = Entity.getY(args[0]);
-       if (args[0] == playerId) {
-           y -= PLAYER_HEIGHT;
-       }
-       writer.println(Math.floor(Entity.getX(args[0]))+","+Math.round(y)+","+Math.floor(Entity.getZ(args[0])));
+       writer.println(Math.floor(entityX(args[0]))+","+Math.round(entityY(args[0]))+","+Math.floor(entityZ(args[0])));
    }
    else if (m == "world.getPlayerId" || m == "world.getPlayerIds") {
        writer.println(""+playerId);
    }
    else if (m == "entity.setPos" || m == "entity.setTile") {
-       var y;
-       if (args[0] == playerId) {
-           y = PLAYER_HEIGHT+parseFloat(args[2]);
-       }
-       else {
-           y = args[2];
-       }
-       Entity.setVelX(args[0],0);
-       Entity.setVelY(args[0],0);
-       Entity.setVelZ(args[0],0);
-       Entity.setPosition(args[0],args[1],y,args[3]);
+       entitySetPosition(args[0],parseFloat(args[1]),parseFloat(args[2]),parseFloat(args[3]));
    }
    else if (m == "player.setPos" || m == "player.setTile") {
-       Entity.setVelX(playerId,0);
-       Entity.setVelY(playerId,0);
-       Entity.setVelZ(playerId,0);
-       Entity.setPosition(playerId,args[0],PLAYER_HEIGHT+parseFloat(args[1]),args[2]);
+       entitySetPosition(playerId,parseFloat(args[0]),parseFloat(args[1]),parseFloat(args[2]));
    }
    else if (m == "player.getPitch") {
        writer.println(""+getPitch(playerId));
@@ -454,13 +499,23 @@ function handleCommand(cmd) {
        entityGetDirection(playerId);
    }
    else if (m == "world.getBlock") {
-       writer.println(""+Level.getTile(args[0], args[1], args[2]));
+       writer.println(""+Level.getTile(spawnX+parseInt(args[0]), spawnY+parseInt(args[1]), spawnZ+parseInt(args[2])));
    }
    else if (m == "world.getBlockWithData") {
-       writer.println(""+Level.getTile(args[0], args[1], args[2])+","+Level.getData(args[0], args[1], args[2]));
+       writer.println(""+
+           Level.getTile(spawnX+parseInt(args[0]),spawnY+parseInt(args[1]), spawnZ+parseInt(args[2]))+","+
+           Level.getData(spawnX+parseInt(args[0]), spawnY+parseInt(args[1]), spawnZ+parseInt(args[2])));
    }
    else if (m == "chat.post") {
        clientMessage(argList);
+   }
+   else if (m == "world.setTime") {
+       Level.setTime(args[0]);
+   }
+   else if (m == "world.setting") {
+       if (args.length >= 2 && args[0] == "world_immutable") {
+           immutable = parseInt(args[1]);
+       }
    }
    else if (m == "events.block.hits") {
        writer.println(eventSync.getAndClearHits());
@@ -487,29 +542,33 @@ function handleCommand(cmd) {
        writer.println(""+camera);
    }
    else if (m == "world.getHeight") {
-       var x = parseInt(args[0]);
-       var z = parseInt(args[2]);
+       var x = spawnX+parseInt(args[0]);
+       var z = spawnZ+parseInt(args[2]);
        var y;
-       for (y = 127 ; y > 0 ; y--) {
+       for (var y = 127 ; y > 0 ; y--) {
            if (Level.getTile(x,y,z)) {
                break;
            }
        }
-       writer.println(""+y);
+       writer.println(""+(y-spawnY));
    }
    else if (m == "world.spawnEntity") {
        var id;
+       var x = spawnX+parseFloat(args[1]);
+       var y = spawnY+parseFloat(args[2]);
+       var z = spawnZ+parseFloat(args[3]);
        if (args[0] == "Cow") {
-           id = spawnCow(args[1], args[2], args[3]);
+           id = spawnCow(x,y,z);
        }
        else if (args[0] == "Chicken") {
-           id = spawnChicken(args[1], args[2], args[3]);
+           android.util.Log.v("droidjam", "chicken at "+x+" "+y+" "+z); 
+           id = spawnChicken(x,y,z);
        }
        else if (! isNaN(args[0])) {
-           id = Level.spawnMob(args[1], args[2], args[3], args[0]);
+           id = Level.spawnMob(x,y,z, args[0]);
        }
        else if (args[0] in ENTITIES) {
-           id = Level.spawnMob(args[1], args[2], args[3], ENTITIES[args[0]]);
+           id = Level.spawnMob(x,y,z, ENTITIES[args[0]]);
        }
        writer.println(""+id);
 //       if (args.length >= 5 && args[4]) {
@@ -539,9 +598,11 @@ function _pushBlockQueue(x,y,z,id,meta) {
 pushBlockQueue = new Packages.org.mozilla.javascript.Synchronizer(_pushBlockQueue);
 
 function setBlock(args) {
-    pushBlockQueue(parseInt(Math.round(args[0])),
-       parseInt(Math.round(args[1])),parseInt(Math.round(args[2])),
-       parseInt(Math.round(args[3])),parseInt(Math.round(args[4])));
+    pushBlockQueue(
+       spawnX+parseInt(args[0]),
+       spawnY+parseInt(args[1]),
+       spawnZ+parseInt(args[2]),
+       parseInt(args[3]), parseInt(args[4]));
 }
 
 function _grab() {
@@ -559,6 +620,12 @@ function _grab() {
 grab = new Packages.org.mozilla.javascript.Synchronizer(_grab);
 
 function modTick() {
+    if (needSpawnY && Player.getY() < 128) {
+        needSpawnY = 0;
+        spawnY = parseInt(Math.round(Player.getY()-PLAYER_HEIGHT));
+        ModPE.saveData(worldDir+".spawnY", spawnY);
+        android.util.Log.v("droidjam", "spawnY = "+spawnY);
+    }
 //    for (i = 0 ; i < noAIs.length ; i++) {
 //        e = noAIs[i];
 //        Entity.setPosition(e[0],e[1],e[2],e[3]);
@@ -570,7 +637,7 @@ function modTick() {
     }
     busy++;
     var grabbed = grab();
-    for (i = 0 ; i < grabbed.length ; i++) {
+    for (var i = 0 ; i < grabbed.length ; i++) {
         var e = grabbed[i];
         Level.setTile(e[0], e[1], e[2], e[3], e[4]);
     }
@@ -578,12 +645,12 @@ function modTick() {
 }
 
 function setBlocks(args) {
-   var x0 = parseInt(Math.round(args[0]));
-   var y0 = parseInt(Math.round(args[1]));
-   var z0 = parseInt(Math.round(args[2]));
-   var x1 = parseInt(Math.round(args[3]));
-   var y1 = parseInt(Math.round(args[4]));
-   var z1 = parseInt(Math.round(args[5]));
+   var x0 = parseInt(args[0]) + spawnX;
+   var y0 = parseInt(args[1]) + spawnY;
+   var z0 = parseInt(args[2]) + spawnZ;
+   var x1 = parseInt(args[3]) + spawnX;
+   var y1 = parseInt(args[4]) + spawnY;
+   var z1 = parseInt(args[5]) + spawnZ;
    var id = parseInt(args[6]);
    var meta = parseInt(args[7]);
    var startx = x0 < x1 ? x0 : x1;
@@ -592,9 +659,9 @@ function setBlocks(args) {
    var endx = x0 > x1 ? x0 : x1;
    var endy = y0 > y1 ? y0 : y1;
    var endz = z0 > z1 ? z0 : z1;
-   for (z = startz ; z <= endz ; z++) {
-       for (y = starty ; y <= endy ; y++) {
-           for (x = startx ; x <= endx ; x++) {
+   for (var z = startz ; z <= endz ; z++) {
+       for (var y = starty ; y <= endy ; y++) {
+           for (var x = startx ; x <= endx ; x++) {
                 pushBlockQueue(x,y,z,id,meta);
            }
        }

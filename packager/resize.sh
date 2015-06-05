@@ -8,3 +8,4 @@ convert icon.png -resize 96x96 res/drawable-xhdpi/icon.png
 convert icon.png -resize 72x72 res/drawable-hdpi/icon.png
 convert icon.png -resize 48x48 res/drawable-mdpi/icon.png
 
+convert icon.png -resize 114x114 icon114.png
