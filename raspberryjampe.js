@@ -4,7 +4,8 @@
 
 // 20 is reliable
 // 80 seems OK
-var BLOCKS_PER_TICK = 100;
+// but surprisingly 10000 works well
+var BLOCKS_PER_TICK = 10000;
 var PORT = 4711;
 var EVENTS_MAX = 512;
 var PLAYER_HEIGHT = 1.61999988;
@@ -447,6 +448,7 @@ function handleCommand(cmd) {
    var m = cmd.substring(0,n);
    var argList = cmd.substring(n+1,cmd.length()-1);
    var args = argList.split(",");
+
    if (m == "world.setBlock") {
       pushBlockQueue(
          spawnX+Math.floor(args[0]),
@@ -648,11 +650,14 @@ function modTick() {
 //        setRot(e[0], e[4], e[5]);
 //    }
     if (busy) {
+        android.util.Log.v("droidjam", "busy tick");
         // try again next tick
         return;
     }
     busy++;
     var grabbed = grab();
+    if (grabbed.length > 0)
+        android.util.Log.v("droidjam", "handling "+grabbed.length);
     for (var i = 0 ; i < grabbed.length ; i++) {
         var e = grabbed[i];
         Level.setTile(e[0], e[1], e[2], e[3], e[4]);
