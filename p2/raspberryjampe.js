@@ -15,16 +15,17 @@ var socket;
 var reader;
 var writer;
 var thread;
-var running;
+var running = false;
 
-var immutable = 0;
+var busy = 0;
+var immutable = false;
 var worldDir = "undefined";
 var hitRestrictedToSword = 1;
 var blockQueue = [];
 var hitData = [];
 var chatData = [];
-var newWorld = 1;
-var needSpawnY = 0;
+var newWorld = true;
+var needSpawnY = false;
 var spawnX;
 var spawnY;
 var spawnZ;
@@ -58,6 +59,12 @@ var ENTITIES = {
     "Bat":19
 };
 
+function _clearBlockQueue(x,y,z,id,meta) {
+    blockQueue = [];
+}
+
+clearBlockQueue = new Packages.org.mozilla.javascript.Synchronizer(_clearBlockQueue);
+
 function setCamera(id) {
    ModPE.setCamera(id);
    camera = id;
@@ -72,22 +79,22 @@ function updateSpawnPos() {
        return;
    }
 
-   newWorld = 0;
+   newWorld = false;
 
    android.util.Log.v("droidjam", "initial position is "+Player.getX()+" "+Player.getY()+" "+Player.getZ());
 
-   spawnX = parseInt(Math.floor(Player.getX()));
+   spawnX = Math.floor(Player.getX());
    ModPE.saveData(worldDir+".spawnX", spawnX);
    y = Player.getY();
    if (y <= 127) {
-       spawnY = parseInt(Math.round(y - PLAYER_HEIGHT));
+       spawnY = Math.round(y - PLAYER_HEIGHT);
        ModPE.saveData(worldDir+".spawnY", spawnY);
    }
    else {
        spawnY = 0;
-       needSpawnY = 1;
+       needSpawnY = true;
    }
-   spawnZ = parseInt(Math.floor(Player.getZ()));
+   spawnZ = Math.floor(Player.getZ());
    ModPE.saveData(worldDir+".spawnZ", spawnZ);
    android.util.Log.v("droidjam", "defining spawn position as "+spawnX+" "+spawnY+" "+spawnZ);
 }
@@ -97,17 +104,17 @@ function selectLevelHook() {
    worldDir = Level.getWorldDir();
    var f = new java.io.File(android.os.Environment.getExternalStorageDirectory().getAbsolutePath()+"/games/com.mojang/minecraftWorlds/"+worldDir);
    if (f.listFiles()) {
-       newWorld = 0;
+       newWorld = false;
    }
    else {
-       newWorld = 1;
+       newWorld = true;
        android.util.Log.v("droidjam", "new world");
    }
 }
 
 function newLevel(hasLevel) {
    android.util.Log.v("droidjam", "newLevel "+hasLevel);
-   running = 1;
+   running = true;
    thread = new java.lang.Thread(runServer);
    thread.start();
    playerId = Player.getEntity();
@@ -257,7 +264,7 @@ function entitySetPosition(id, x,y,z) {
          y2 = PLAYER_HEIGHT+parseFloat(y);
      }
      else {
-         y2 = args[2];
+         y2 = y;
      }
      Entity.setVelX(id,0);
      Entity.setVelY(id,0);
@@ -362,13 +369,13 @@ function runServer() {
       socket = undefined;
 
       try {
+          socket=serverSocket.accept();
           if (!running)
               break;
-          socket=serverSocket.accept();
-          android.util.Log.v("droidjam", "opening connection");
+
+          android.util.Log.v("droidjam", "opened connection");
           reader=new java.io.BufferedReader(new java.io.InputStreamReader(socket.getInputStream()));
           writer=new java.io.PrintWriter(socket.getOutputStream(),true);
-//          Level.setTime(0); // only for debug
 
           while(running) {
              var str = reader.readLine();
@@ -390,7 +397,8 @@ function runServer() {
 
 function leaveGame() {
    android.util.Log.v("droidjam", "leaveGame()");
-   running = 0;
+   clearBlockQueue();
+   running = false;
    serverSync.closeAllButServer();
    serverSync.closeServer();
 }
@@ -422,6 +430,13 @@ function entityGetDirection(id) {
    writer.println(""+x+","+y+","+z);
 }
 
+function _pushBlockQueue(x,y,z,id,meta) {
+    var entry = [x,y,z,id,meta];
+    blockQueue.push(entry);
+}
+
+pushBlockQueue = new Packages.org.mozilla.javascript.Synchronizer(_pushBlockQueue);
+
 function handleCommand(cmd) {
    cmd = cmd.trim();
    var n = cmd.indexOf("(");
@@ -433,7 +448,12 @@ function handleCommand(cmd) {
    var argList = cmd.substring(n+1,cmd.length()-1);
    var args = argList.split(",");
    if (m == "world.setBlock") {
-       setBlock(args);
+      pushBlockQueue(
+         spawnX+Math.floor(args[0]),
+         spawnY+Math.floor(args[1]),
+         spawnZ+Math.floor(args[2]),
+         parseInt(args[3]),
+         parseInt(args[4]));
    }
    else if (m == "world.setBlocks") {
        setBlocks(args);
@@ -455,7 +475,8 @@ function handleCommand(cmd) {
        writer.println(""+playerId);
    }
    else if (m == "entity.setPos" || m == "entity.setTile") {
-       entitySetPosition(args[0],parseFloat(args[1]),parseFloat(args[2]),parseFloat(args[3]));
+       if(args[0] >= 0)
+           entitySetPosition(args[0],parseFloat(args[1]),parseFloat(args[2]),parseFloat(args[3]));
    }
    else if (m == "player.setPos" || m == "player.setTile") {
        entitySetPosition(playerId,parseFloat(args[0]),parseFloat(args[1]),parseFloat(args[2]));
@@ -479,13 +500,16 @@ function handleCommand(cmd) {
        setRot(playerId, args[0], getPitch(playerId));
    }
    else if (m == "entity.setPitch") {
-       setRot(args[0], getYaw(args[0]), args[1]);
+       if (args[0] >= 0)
+           setRot(args[0], getYaw(args[0]), args[1]);
    }
    else if (m == "entity.setRotation") {
-       setRot(args[0], args[1], getPitch(args[0]));
+       if (args[0] >= 0)
+           setRot(args[0], args[1], getPitch(args[0]));
    }
    else if (m == "entity.setDirection") {
-       entitySetDirection(args[0], args[1], args[2], args[3]);
+       if (args[0] >= 0)
+           entitySetDirection(args[0], args[1], args[2], args[3]);
    }
    else if (m == "player.setDirection") {
        entitySetDirection(playerId, args[0], args[1], args[2]);
@@ -497,12 +521,15 @@ function handleCommand(cmd) {
        entityGetDirection(playerId);
    }
    else if (m == "world.getBlock") {
-       writer.println(""+Level.getTile(spawnX+parseInt(args[0]), spawnY+parseInt(args[1]), spawnZ+parseInt(args[2])));
+       writer.println(""+Level.getTile(spawnX+Math.floor(args[0]), spawnY+Math.floor(args[1]), spawnZ+Math.floor(args[2])));
    }
    else if (m == "world.getBlockWithData") {
+       var x = spawnX + Math.floor(args[0]);
+       var y = spawnY + Math.floor(args[1]);
+       var z = spawnZ + Math.floor(args[2]);
        writer.println(""+
-           Level.getTile(spawnX+parseInt(args[0]),spawnY+parseInt(args[1]), spawnZ+parseInt(args[2]))+","+
-           Level.getData(spawnX+parseInt(args[0]), spawnY+parseInt(args[1]), spawnZ+parseInt(args[2])));
+           Level.getTile(x,y,z)+","+
+           Level.getData(x,y,z));
    }
    else if (m == "chat.post") {
        clientMessage(argList);
@@ -512,7 +539,7 @@ function handleCommand(cmd) {
    }
    else if (m == "world.setting") {
        if (args.length >= 2 && args[0] == "world_immutable") {
-           immutable = parseInt(args[1]);
+           immutable = Boolean(parseInt(args[1]));
        }
    }
    else if (m == "events.block.hits") {
@@ -540,8 +567,8 @@ function handleCommand(cmd) {
        writer.println(""+camera);
    }
    else if (m == "world.getHeight") {
-       var x = spawnX+parseInt(args[0]);
-       var z = spawnZ+parseInt(args[2]);
+       var x = spawnX+Math.floor(args[0]);
+       var z = spawnZ+Math.floor(args[2]);
        var y;
        for (var y = 127 ; y > 0 ; y--) {
            if (Level.getTile(x,y,z)) {
@@ -551,23 +578,26 @@ function handleCommand(cmd) {
        writer.println(""+(y-spawnY));
    }
    else if (m == "world.spawnEntity") {
-       var id;
+       var id = -1;
        var x = spawnX+parseFloat(args[1]);
        var y = spawnY+parseFloat(args[2]);
        var z = spawnZ+parseFloat(args[3]);
+
        if (args[0] == "Cow") {
            id = spawnCow(x,y,z);
        }
        else if (args[0] == "Chicken") {
-           android.util.Log.v("droidjam", "chicken at "+x+" "+y+" "+z); 
            id = spawnChicken(x,y,z);
        }
        else if (! isNaN(args[0])) {
+           android.util.Log.v("droidjam", "mob at "+x+" "+y+" "+z);
            id = Level.spawnMob(x,y,z, args[0]);
        }
        else if (args[0] in ENTITIES) {
+           android.util.Log.v("droidjam", "mob at "+x+" "+y+" "+z);
            id = Level.spawnMob(x,y,z, ENTITIES[args[0]]);
        }
+
        writer.println(""+id);
 //       if (args.length >= 5 && args[4]) {
 //           var e = [id, args[1], args[2], args[3], 0, 0];
@@ -582,25 +612,9 @@ function handleCommand(cmd) {
        Entity.remove(args[0]);
    }
    else {
+       android.util.Log.e("droidjam", "Unknown command");
        err("Unknown command");
-    }
-}
-
-var busy = 0;
-
-function _pushBlockQueue(x,y,z,id,meta) {
-    var entry = [x,y,z,id,meta];
-    blockQueue.push(entry);
-}
-
-pushBlockQueue = new Packages.org.mozilla.javascript.Synchronizer(_pushBlockQueue);
-
-function setBlock(args) {
-    pushBlockQueue(
-       spawnX+parseInt(args[0]),
-       spawnY+parseInt(args[1]),
-       spawnZ+parseInt(args[2]),
-       parseInt(args[3]), parseInt(args[4]));
+   }
 }
 
 function _grab() {
@@ -619,8 +633,8 @@ grab = new Packages.org.mozilla.javascript.Synchronizer(_grab);
 
 function modTick() {
     if (needSpawnY && Player.getY() < 128) {
-        needSpawnY = 0;
-        spawnY = parseInt(Math.round(Player.getY()-PLAYER_HEIGHT));
+        needSpawnY = false;
+        spawnY = Math.round(Player.getY()-PLAYER_HEIGHT);
         android.util.Log.v("droidjam", "spawnY = "+spawnY);
         while (spawnY > 0 && Level.getTile(spawnX,spawnY-1,spawnZ) == 0) {
             spawnY--;
@@ -647,12 +661,12 @@ function modTick() {
 }
 
 function setBlocks(args) {
-   var x0 = parseInt(args[0]) + spawnX;
-   var y0 = parseInt(args[1]) + spawnY;
-   var z0 = parseInt(args[2]) + spawnZ;
-   var x1 = parseInt(args[3]) + spawnX;
-   var y1 = parseInt(args[4]) + spawnY;
-   var z1 = parseInt(args[5]) + spawnZ;
+   var x0 = Math.floor(args[0]) + spawnX;
+   var y0 = Math.floor(args[1]) + spawnY;
+   var z0 = Math.floor(args[2]) + spawnZ;
+   var x1 = Math.floor(args[3]) + spawnX;
+   var y1 = Math.floor(args[4]) + spawnY;
+   var z1 = Math.floor(args[5]) + spawnZ;
    var id = parseInt(args[6]);
    var meta = parseInt(args[7]);
    var startx = x0 < x1 ? x0 : x1;
