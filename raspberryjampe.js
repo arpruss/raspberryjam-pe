@@ -35,17 +35,20 @@ var playerId;
 var ENTITIES = {
     "PrimedTnt":65,
     "FallingSand":66,
+    "FishingRodHook":77, // not official name
     "Arrow":80,
     "Snowball":81,
+    "Egg":82, // not official name
     "MinecartRideable":84,
     "Fireball":85,
+    "Boat":90,
     "Zombie":32,
     "Creeper":33,
     "Skeleton":34,
     "Spider":35,
     "PigZombie":36,
     "Slime":37,
-    "Enderman":38, //untested from here
+    "Enderman":38,
     "Silverfish":39,
     "CaveSpider":40,
     "Ghast":41,
@@ -55,6 +58,7 @@ var ENTITIES = {
     "Pig":12,
     "Sheep":13,
     "Wolf":14,
+    "Villager":15,
     "Mooshroom":16,
     "Squid":17,
     "Bat":19
@@ -249,7 +253,7 @@ function entityX(id) {
 }
 
 function entityY(id) {
-   if (id == playerId) 
+   if (id == playerId)
        return Entity.getY(id) - PLAYER_HEIGHT - spawnY;
    else
        return Entity.getY(id) - spawnY;
@@ -262,7 +266,7 @@ function entityZ(id) {
 function entitySetPosition(id, x,y,z) {
      var y2;
      if (id == playerId) {
-         y2 = PLAYER_HEIGHT+parseFloat(y);
+         y2 = PLAYER_HEIGHT+y;
      }
      else {
          y2 = y;
@@ -270,6 +274,7 @@ function entitySetPosition(id, x,y,z) {
      Entity.setVelX(id,0);
      Entity.setVelY(id,0);
      Entity.setVelZ(id,0);
+     android.util.Log.v("droidjam", "pos "+x+" "+y+" "+z+"->"+[spawnX+x,spawnY+y2,spawnZ+z]);
      Entity.setPosition(id,spawnX+x,spawnY+y2,spawnZ+z);
 }
 
@@ -468,17 +473,20 @@ function handleCommand(cmd) {
        writer.println(""+Math.floor(playerX())+","+Math.round(playerY())+","+Math.floor(playerZ()));
    }
    else if (m == "entity.getPos") {
-       writer.println(entityX(args[0])+","+entityY(args[0])+","+entityZ(args[0]));
+       var id = parseInt(args[0]);
+       writer.println(entityX(id)+","+entityY(id)+","+entityZ(id));
    }
    else if (m == "entity.getTile") {
-       writer.println(Math.floor(entityX(args[0]))+","+Math.round(entityY(args[0]))+","+Math.floor(entityZ(args[0])));
+       var id = parseInt(args[0]);
+       writer.println(Math.floor(entityX(id))+","+Math.round(entityY(id))+","+Math.floor(entityZ(id)));
    }
    else if (m == "world.getPlayerId" || m == "world.getPlayerIds") {
        writer.println(""+playerId);
    }
    else if (m == "entity.setPos" || m == "entity.setTile") {
-       if(args[0] >= 0)
-           entitySetPosition(args[0],parseFloat(args[1]),parseFloat(args[2]),parseFloat(args[3]));
+       var id = parseInt(args[0]);
+       if(id != -1)
+           entitySetPosition(id,parseFloat(args[1]),parseFloat(args[2]),parseFloat(args[3]));
    }
    else if (m == "player.setPos" || m == "player.setTile") {
        entitySetPosition(playerId,parseFloat(args[0]),parseFloat(args[1]),parseFloat(args[2]));
@@ -490,34 +498,40 @@ function handleCommand(cmd) {
        writer.println(""+getYaw(playerId));
    }
    else if (m == "entity.getPitch") {
-       writer.println(""+getPitch(args[0]));
+       var id = parseInt(args[0]);
+       writer.println(""+getPitch(id));
    }
    else if (m == "entity.getRotation") {
-       writer.println(""+getYaw(args[0]));
+       writer.println(""+getYaw(id));
    }
    else if (m == "player.setPitch") {
-       setRot(playerId, getYaw(playerId), args[0]);
+       setRot(playerId, getYaw(playerId), parseFloat(args[0]));
    }
    else if (m == "player.setRotation") {
-       setRot(playerId, args[0], getPitch(playerId));
+       setRot(playerId, parseFloat(args[0]), getPitch(playerId));
    }
    else if (m == "entity.setPitch") {
-       if (args[0] >= 0)
-           setRot(args[0], getYaw(args[0]), args[1]);
+       var id = parseInt(args[0]);
+       if (id != -1)
+           setRot(id, getYaw(id), parseFloat(args[1]));
    }
    else if (m == "entity.setRotation") {
-       if (args[0] >= 0)
-           setRot(args[0], args[1], getPitch(args[0]));
+       var id = parseInt(args[0]);
+       if (id != -1)
+           setRot(id, parseFloat(args[1]), getPitch(id));
    }
    else if (m == "entity.setDirection") {
-       if (args[0] >= 0)
-           entitySetDirection(args[0], args[1], args[2], args[3]);
+       var id = parseInt(args[0]);
+       if (id != -1)
+           entitySetDirection(id, parseFloat(args[1]), parseFloat(args[2]), parseFloat(args[3]));
    }
    else if (m == "player.setDirection") {
-       entitySetDirection(playerId, args[0], args[1], args[2]);
+       entitySetDirection(playerId, parseFloat(args[0]), parseFloat(args[1]), parseFloat(args[2]));
    }
    else if (m == "entity.getDirection") {
-       entityGetDirection(args[0]);
+       var id = parseInt(args[0]);
+       if (id != -1)
+          entityGetDirection(id);
    }
    else if (m == "player.getDirection") {
        entityGetDirection(playerId);
@@ -537,7 +551,7 @@ function handleCommand(cmd) {
        clientMessage(argList);
    }
    else if (m == "world.setTime") {
-       Level.setTime(args[0]);
+       Level.setTime(parseInt(args[0]));
    }
    else if (m == "world.setting") {
        if (args.length >= 2 && args[0] == "world_immutable") {
@@ -560,7 +574,7 @@ function handleCommand(cmd) {
        }
    }
    else if (m == "camera.setFollow") {
-       setCamera(args[0]);
+       setCamera(parseInt(args[0]));
    }
    else if (m == "camera.setNormal") {
        setCamera(playerId);
@@ -608,10 +622,10 @@ function handleCommand(cmd) {
 //       }
    }
    else if (m == "entity.rideAnimal") { // unofficial
-       Entity.rideAnimal(args[0], args[1]);
+       Entity.rideAnimal(parseInt(args[0]), parseInt(args[1]));
    }
    else if (m == "world.removeEntity") {
-       Entity.remove(args[0]);
+       Entity.remove(parseInt(args[0]));
    }
    else {
        android.util.Log.e("droidjam", "Unknown command");

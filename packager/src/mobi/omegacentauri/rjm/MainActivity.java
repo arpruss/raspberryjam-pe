@@ -186,7 +186,7 @@ public class MainActivity extends Activity {
 		else {
 			message += "<p>3. You have "+bl+" installed. Excellent!</p>"; 	
 		}
-    	message += "<p><b>Update:</b> If you're using Minecraft 0.11.1, you may need the <a href='http://zhuoweizhang.net/MCPELauncher/'>beta version</a> of BlockLauncher (uninstall release version first to avoid confusion).</p>";
+//    	message += "<p><b>Update:</b> If you're using Minecraft 0.11.1, you may need the <a href='http://zhuoweizhang.net/MCPELauncher/'>beta version</a> of BlockLauncher (uninstall release version first to avoid confusion).</p>";
 		
 		message += "<p>4. Tap on the 'Install' button and agree to install mod." + (haveAll?"":" (The button will show up once the above steps are done.)")+"</p>";
 
