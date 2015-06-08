@@ -1,0 +1,7 @@
+from mc import *
+
+mc = Minecraft()
+playerPos = mc.player.getPos()
+
+
+mc.postToChat('Script done')

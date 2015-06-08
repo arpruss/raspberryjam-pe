@@ -1,0 +1,9 @@
+from mcturtle import *
+
+t = Turtle()
+t.penwidth(1)
+t.pendelay(0)
+t.penblock(GOLD_BLOCK)
+
+
+t.mc.postToChat('Script done')
