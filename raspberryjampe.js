@@ -23,6 +23,7 @@ var immutable = false;
 var worldDir = "undefined";
 var hitRestrictedToSword = 1;
 var blockQueue = [];
+var grabbedFromQueue = [];
 var hitData = [];
 var chatData = [];
 var newWorld = true;
@@ -443,6 +444,28 @@ function _pushBlockQueue(x,y,z,id,meta) {
 
 pushBlockQueue = new Packages.org.mozilla.javascript.Synchronizer(_pushBlockQueue);
 
+function _getBlockFromQueue(x,y,z) {
+    for (i = blockQueue.length - 1 ; i >= 0 ; i++) {
+        if (blockQueue[i][0] == x && blockQueue[i][1] == y && blockQueue[i][2] == z)
+            return [blockQueue[i][3], blockQueue[i][4]];
+    }
+    for (i = grabbedFromQueue.length - 1 ; i >= 0 ; i++) {
+        if (grabbedFromQueue[i][0] == x && grabbedFromQueue[i][1] == y && grabbedFromQueue[i][2] == z)
+            return [grabbedFromQueue[i][3], grabbedFromQueue[i][4]];
+    }
+    return undefined;
+}
+
+getBlockFromQueue = new Packages.org.mozilla.javascript.Synchronizer(_getBlockFromQueue);
+
+function getBlock(x,y,z) {
+   var b = getBlockFromQueue(x,y,z);
+   if (b === undefined) 
+       return Level.getTile(x,y,z);
+   else
+       return b[0];
+}
+
 function handleCommand(cmd) {
    cmd = cmd.trim();
    var n = cmd.indexOf("(");
@@ -537,18 +560,26 @@ function handleCommand(cmd) {
        entityGetDirection(playerId);
    }
    else if (m == "world.getBlock") {
-       writer.println(""+Level.getTile(spawnX+Math.floor(args[0]), spawnY+Math.floor(args[1]), spawnZ+Math.floor(args[2])));
+       var x = spawnX+Math.floor(args[0]);
+       var y = spawnY+Math.floor(args[1]);
+       var z = spawnZ+Math.floor(args[2]);
+       writer.println(""+getBlock(x,y,z));
    }
    else if (m == "world.getBlockWithData") {
        var x = spawnX + Math.floor(args[0]);
        var y = spawnY + Math.floor(args[1]);
        var z = spawnZ + Math.floor(args[2]);
-       writer.println(""+
-           Level.getTile(x,y,z)+","+
-           Level.getData(x,y,z));
+       var b = getBlockFromQueue(x,y,z);
+       if (b === undefined)
+           writer.println(""+Level.getTile(x,y,z)+","+Level.getData(x,y,z));
+       else
+           writer.println(""+b[0]+","+b[1]);
    }
    else if (m == "chat.post") {
-       clientMessage(argList);
+       if (argList.charAt(0) == '/')
+           clientMessage(":"+argList); // protect against slash command injection
+       else
+           clientMessage(argList);
    }
    else if (m == "world.setTime") {
        Level.setTime(parseInt(args[0]));
@@ -583,11 +614,12 @@ function handleCommand(cmd) {
        writer.println(""+camera);
    }
    else if (m == "world.getHeight") {
+       // could be optimized for cases where there is a lot of stuff in queue
        var x = spawnX+Math.floor(args[0]);
        var z = spawnZ+Math.floor(args[2]);
        var y;
        for (var y = 127 ; y > 0 ; y--) {
-           if (Level.getTile(x,y,z)) {
+           if (getBlock(x,y,z)) {
                break;
            }
        }
@@ -633,19 +665,18 @@ function handleCommand(cmd) {
    }
 }
 
-function _grab() {
+function _grabFromQueue() {
     var count = blockQueue.length;
     if (count == 0)
         return [];
     if (count > BLOCKS_PER_TICK) {
         count = BLOCKS_PER_TICK;
     }
-    var grabbed = blockQueue.slice(0,count);
+    grabbed = blockQueue.slice(0,count);
     blockQueue = blockQueue.slice(count);
-    return grabbed;
 }
 
-grab = new Packages.org.mozilla.javascript.Synchronizer(_grab);
+grabFromQueue = new Packages.org.mozilla.javascript.Synchronizer(_grab);
 
 function modTick() {
     if (needSpawnY && Player.getY() < 128) {
@@ -669,13 +700,12 @@ function modTick() {
         return;
     }
     busy++;
-    var grabbed = grab();
-    if (grabbed.length > 0)
-        android.util.Log.v("droidjam", "handling "+grabbed.length);
+    grabFromQueue();
     for (var i = 0 ; i < grabbed.length ; i++) {
         var e = grabbed[i];
         Level.setTile(e[0], e[1], e[2], e[3], e[4]);
     }
+    grabbed = [];
     busy--;
 }
 
