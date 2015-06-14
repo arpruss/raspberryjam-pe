@@ -23,7 +23,7 @@ var immutable = false;
 var worldDir = "undefined";
 var hitRestrictedToSword = 1;
 var blockQueue = [];
-var grabbedFromQueue = [];
+var grabbed = [];
 var hitData = [];
 var chatData = [];
 var newWorld = true;
@@ -445,13 +445,13 @@ function _pushBlockQueue(x,y,z,id,meta) {
 pushBlockQueue = new Packages.org.mozilla.javascript.Synchronizer(_pushBlockQueue);
 
 function _getBlockFromQueue(x,y,z) {
-    for (i = blockQueue.length - 1 ; i >= 0 ; i++) {
+    for (var i = blockQueue.length - 1 ; i >= 0 ; i++) {
         if (blockQueue[i][0] == x && blockQueue[i][1] == y && blockQueue[i][2] == z)
             return [blockQueue[i][3], blockQueue[i][4]];
     }
-    for (i = grabbedFromQueue.length - 1 ; i >= 0 ; i++) {
-        if (grabbedFromQueue[i][0] == x && grabbedFromQueue[i][1] == y && grabbedFromQueue[i][2] == z)
-            return [grabbedFromQueue[i][3], grabbedFromQueue[i][4]];
+    for (var i = grabbed.length - 1 ; i >= 0 ; i++) {
+        if (grabbed[i][0] == x && grabbed[i][1] == y && grabbed[i][2] == z)
+            return [grabbed[i][3], grabbed[i][4]];
     }
     return undefined;
 }
@@ -460,10 +460,12 @@ getBlockFromQueue = new Packages.org.mozilla.javascript.Synchronizer(_getBlockFr
 
 function getBlock(x,y,z) {
    var b = getBlockFromQueue(x,y,z);
-   if (b === undefined) 
+   if (b === undefined)
        return Level.getTile(x,y,z);
-   else
+   else {
+       clientMessage(b);
        return b[0];
+   }
 }
 
 function handleCommand(cmd) {
@@ -676,7 +678,7 @@ function _grabFromQueue() {
     blockQueue = blockQueue.slice(count);
 }
 
-grabFromQueue = new Packages.org.mozilla.javascript.Synchronizer(_grab);
+grabFromQueue = new Packages.org.mozilla.javascript.Synchronizer(_grabFromQueue);
 
 function modTick() {
     if (needSpawnY && Player.getY() < 128) {
