@@ -32,7 +32,7 @@ var spawnX;
 var spawnY;
 var spawnZ;
 var playerId;
-//var noAIs = [];
+var noAIs = [];
 var ENTITIES = {
     "PrimedTnt":65,
     "FallingSand":66,
@@ -404,8 +404,8 @@ function runServer() {
 
 function leaveGame() {
    android.util.Log.v("droidjam", "leaveGame()");
-   clearBlockQueue();
    running = false;
+   clearBlockQueue();
    serverSync.closeAllButServer();
    serverSync.closeServer();
 }
@@ -467,6 +467,10 @@ function getBlock(x,y,z) {
        return b[0];
    }
 }
+
+function _addNoAI(id,x,y,z) {
+}
+addNoAI = new Packages.org.mozilla.javascript.Synchronizer(_addNoAI);
 
 function handleCommand(cmd) {
    cmd = cmd.trim();
@@ -648,13 +652,10 @@ function handleCommand(cmd) {
            android.util.Log.v("droidjam", "mob at "+x+" "+y+" "+z);
            id = Level.spawnMob(x,y,z, ENTITIES[args[0]]);
        }
-
        writer.println(""+id);
-//       if (args.length >= 5 && args[4]) {
-//           var e = [id, args[1], args[2], args[3], 0, 0];
-//           noAIs.push(e);
-//           android.util.Log.v("droidjam", "closing connection");
-//       }
+       if (args.length >= 5 && args[4]) {
+           addNoAI(parseInt(id), x, y, z);
+       }
    }
    else if (m == "entity.rideAnimal") { // unofficial
        Entity.rideAnimal(parseInt(args[0]), parseInt(args[1]));
@@ -704,7 +705,7 @@ function modTick() {
     }
     busy++;
     grabFromQueue();
-    for (var i = 0 ; i < grabbed.length ; i++) {
+    for (var i = 0 ; i < grabbed.length && running ; i++) {
         var e = grabbed[i];
         Level.setTile(e[0], e[1], e[2], e[3], e[4]);
     }

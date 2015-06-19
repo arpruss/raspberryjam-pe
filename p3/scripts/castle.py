@@ -1,5 +1,5 @@
 #
-# MIT-Licensed code by Alexander Pruss
+# Code under the MIT license by Alexander Pruss
 #
 
 from mc import *
@@ -57,7 +57,7 @@ def tower(x,y,z,width,baseHeight,altHeight,innerHeight,distribution):
 mc = Minecraft()
 pos = mc.player.getTilePos()
 
-distribution = ((.05,MOSS_STONE), (.1,Block(STONE_BRICK.id, 1)), (.2,Block(STONE_BRICK.id, 2)), 
+distribution = ((.05,MOSS_STONE), (.1,Block(STONE_BRICK.id, 1)), (.2,Block(STONE_BRICK.id, 2)),
                 (.651,Block(STONE_BRICK.id, 0)))
 
 wallSize = 51
