@@ -3,6 +3,7 @@ import select
 import sys
 import atexit
 import os
+import platform
 from .util import flatten_parameters_to_string
 
 """ @author: Aron Nieminen, Mojang AB"""
@@ -29,10 +30,16 @@ class Connection:
         self.socket.connect((address, port))
         self.readFile = self.socket.makefile("r")
         self.lastSent = ""
-        atexit.register(self.close)
+        if platform.system() == "Windows":
+            atexit.register(self.close)
 
     def __del__(self):
-        self.close()
+        if platform.system() == "Windows":
+            self.close()
+            try:
+                atexit.unregister(self.close)
+            except:
+                pass   
 
     def close(self):
         try:
@@ -68,7 +75,7 @@ class Connection:
 
     def send_flat(self, f, data):
         """Sends data. Note that a trailing newline '\n' is added here"""
-        #print "f,data:",f,ddata
+#        print "f,data:",f,list(data)
         s = "%s(%s)\n"%(f, ",".join(data))
         self.drain()
         self.lastSent = s

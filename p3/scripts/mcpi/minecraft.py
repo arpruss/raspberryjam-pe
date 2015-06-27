@@ -1,4 +1,4 @@
-from .connection import Connection
+from .connection import Connection,RequestError
 from .vec3 import Vec3
 from .event import BlockEvent,ChatEvent
 from .block import Block
@@ -176,6 +176,7 @@ class Minecraft:
         self.entity = CmdEntity(self.conn)
         self.player = CmdPlayer(self.conn)
         self.events = CmdEvents(self.conn)
+        self.enabledNBT = False
 
     def spawnEntity(self, *args):
         """Spawn entity (type,x,y,z,tags) and get its id => id:int"""
@@ -192,21 +193,61 @@ class Minecraft:
     def getBlockWithData(self, *args):
         """Get block with data (x,y,z) => Block"""
         ans = self.conn.sendReceive_flat("world.getBlockWithData", floorFlatten(args))
-        return Block(*list(map(int, ans.split(","))))
+        return Block(*list(map(int, ans.split(",")[:2])))
+
+    def getBlockWithNBT(self, *args):
+        """
+        Get block with data and nbt (x,y,z) => Block (if no NBT) or (Block,nbt)
+        For this to work, you first need to do setting("include_nbt_with_data",1)
+        """
+        if not self.enabledNBT:
+            self.setting("include_nbt_with_data",1)
+            self.enabledNBT = True
+            try:
+                ans = self.conn.sendReceive_flat("world.getBlockWithData", floorFlatten(args))
+            except RequestError:
+                # retry in case we had a Fail from the setting
+                ans = self.conn.receive()
+        else:
+            ans = self.conn.sendReceive_flat("world.getBlockWithData", floorFlatten(args))
+        id,data = (list(map(int, ans.split(",")[:2])))
+        commas = 0
+        for i in range(0,len(ans)):
+            if ans[i] == ',':
+                commas += 1
+                if commas == 2:
+                    if '{' in ans[i+1:]:
+                        return Block(id,data,ans[i+1:])
+                    else:
+                        break
+        return Block(id,data)
     """
         @TODO
     """
+    # must have no NBT tags in any Block instances
     def getBlocks(self, *args):
         """Get a cuboid of blocks (x0,y0,z0,x1,y1,z1) => [id:int]"""
         return int(self.conn.sendReceive_flat("world.getBlocks", floorFlatten(args)))
 
+    # must have no NBT tags in Block instance
     def setBlock(self, *args):
         """Set block (x,y,z,id,[data])"""
         self.conn.send_flat("world.setBlock", floorFlatten(args))
 
+    def setBlockWithNBT(self, *args):
+        """Set block (x,y,z,id,data,nbt)"""
+        data = list(flatten(args))
+        self.conn.send_flat("world.setBlock", list(floorFlatten(data[:5]))+data[5:])
+
+    # must have no NBT tags in Block instance
     def setBlocks(self, *args):
         """Set a cuboid of blocks (x0,y0,z0,x1,y1,z1,id,[data])"""
         self.conn.send_flat("world.setBlocks", floorFlatten(args))
+
+    def setBlocksWithNBT(self, *args):
+        """Set a cuboid of blocks (x0,y0,z0,x1,y1,z1,id,data,nbt)"""
+        data = list(flatten(args))
+        self.conn.send_flat("world.setBlocks", list(floorFlatten(data[:8]))+data[8:])
 
     def getHeight(self, *args):
         """Get the height of the world (x,z) => int"""
