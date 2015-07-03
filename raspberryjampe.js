@@ -449,9 +449,10 @@ function _getBlockFromQueue(x,y,z) {
         if (blockQueue[i][0] == x && blockQueue[i][1] == y && blockQueue[i][2] == z)
             return [blockQueue[i][3], blockQueue[i][4]];
     }
-    for (var i = grabbed.length - 1 ; i >= 0 ; i--) {
-        if (grabbed[i][0] == x && grabbed[i][1] == y && grabbed[i][2] == z)
-            return [grabbed[i][3], grabbed[i][4]];
+    var _grabbed = grabbed;
+    for (var i = _grabbed.length - 1 ; i >= 0 ; i--) {
+        if (_grabbed[i][0] == x && _grabbed[i][1] == y && _grabbed[i][2] == z)
+            return [_grabbed[i][3], _grabbed[i][4]];
     }
     return undefined;
 }
@@ -623,9 +624,9 @@ function handleCommand(cmd) {
    else if (m == "world.getHeight") {
        // could be optimized for cases where there is a lot of stuff in queue
        var x = spawnX+Math.floor(args[0]);
-       var z = spawnZ+Math.floor(args[2]);
+       var z = spawnZ+Math.floor(args[1]);
        var y;
-       for (var y = 127 ; y > 0 ; y--) {
+       for (y = 127 ; y > 0 ; y--) {
            if (getBlock(x,y,z)) {
                break;
            }
@@ -738,6 +739,6 @@ function setBlocks(args) {
 }
 
 function err(msg) {
-   writer.println("ERR "+msg);
+   writer.println("fail");
    android.util.Log.e("droidjam", "error "+msg);
 }
