@@ -14,7 +14,6 @@ from mc import *
 from vehicle import *
 import time
 import sys
-import os
 
 GRAVITIES = {
     'sun':274,
@@ -79,14 +78,9 @@ if 3 <= len(sys.argv):
 else:
     g = GRAVITIES['earth']
 
-try:
-    player = int(os.environ['MINECRAFT_PLAYER_ID'])
-except:
-    player = mc.getPlayerId()
-
-center = mc.entity.getPos(player)
-azi = mc.entity.getRotation(player) * pi/180.
-alt = -mc.entity.getPitch(player) * pi/180.
+center = mc.player.getPos()
+azi = mc.player.getRotation() * pi/180.
+alt = -mc.player.getPitch() * pi/180.
 
 GRENADE = { (-1,0,0):TNT, (1,0,0):TNT, (0,-1,0):TNT, (0,1,0):TNT, (0,0,1):TNT, (0,0,-1):TNT }
 
@@ -98,7 +92,7 @@ path = getPath(center, azi, alt, v0)
 dictionary = {}
 prev = path[0][1]
 
-grenade.drawVehicle(prev.x,prev.y,prev.z)
+grenade.draw(prev.x,prev.y,prev.z)
 
 t0 = time.time()
 

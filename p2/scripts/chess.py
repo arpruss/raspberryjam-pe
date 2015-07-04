@@ -306,13 +306,15 @@ def animateMove(rowColMove):
         # promote to queen (all that's supported by the engine)
         animateMovePiece(pos1,pos2)
         piece = pieces[pos2]
-        piece.eraseVehicle()
+        piece.erase()
         if pos.board[move].islower():
-            pieces[pos2] = toVehicle(QUEEN, BLACK, 'q')
+            v = toVehicle(QUEEN, BLACK, 'q')
         else:
-            pieces[pos2] = toVehicle(QUEEN, WHITE, 'Q')
+            v = toVehicle(QUEEN, WHITE, 'Q')
+        pieces[pos2] = v
         c = getCoords(pos2[0],pos2[1])
-        v.drawVehicle(c[0],c[1],c[2])
+        v.draw(c[0],c[1],c[2])
+        v.blankBehind()
         return
     else:
         victim = None
@@ -327,11 +329,12 @@ def animateMove(rowColMove):
             victim = pieces[pos2]
             redrawPiece = True
         animateMovePiece(pos1,pos2)
-        if not victim is None:
-            victim.eraseVehicle()
+        if victim is not None:
+            victim.erase()
             if redrawPiece:
                 piece = pieces[pos2]
-                piece.drawVehicle(piece.curLocation[0],piece.curLocation[1],piece.curLocation[2])
+                piece.draw(piece.curLocation[0],piece.curLocation[1],piece.curLocation[2])
+                piece.blankBehind()
     drawSquare(pos1[0],pos1[1])
     drawSquare(pos2[0],pos2[1])
 
@@ -367,12 +370,13 @@ for row in range(8):
         elif piece.capitalize() in pieceBitmaps:
             v = toVehicle(pieceBitmaps[piece.capitalize()], BLACK, piece)
         else:
-            continue
+            continue 
         #uncomment the following line to optimize speed
         v.getBlockWithData = myGetBlockWithData
         pieces[(row,col)] = v
         c = getCoords(row,col)
-        v.drawVehicle(c[0],c[1],c[2])
+        v.draw(c[0],c[1],c[2])
+        v.blankBehind()
 
 playerMovesNext = not black
 

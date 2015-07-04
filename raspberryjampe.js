@@ -1,6 +1,6 @@
-// droidjam.js (c) 2015 by Alexander R. Pruss
+// raspberryjampe.js (c) 2015 by Alexander R. Pruss
 //
-// License: MIT / X11
+// License: MIT
 
 // 20 is reliable
 // 80 seems OK

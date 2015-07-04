@@ -11,6 +11,11 @@ import mcpi.settings as settings
 import cmath
 import time
 import sys
+from random import uniform
+
+# setting this to 0 makes for more isolated blocks because the connecting filigree was
+# missed; increasing slows down rendering
+AVOID_ISOLATES = 12 if not settings.isPE else 0
 
 ESCAPE = 250
 if len(sys.argv) < 2:
@@ -35,7 +40,14 @@ else:
 
 palette = list(reversed([WOOL_WHITE,HARDENED_CLAY_STAINED_WHITE,WOOL_PINK,WOOL_LIGHT_GRAY,WOOL_LIGHT_BLUE,WOOL_MAGENTA,WOOL_PURPLE,HARDENED_CLAY_STAINED_LIGHT_BLUE,HARDENED_CLAY_STAINED_LIGHT_GRAY,HARDENED_CLAY_STAINED_MAGENTA,HARDENED_CLAY_STAINED_PINK,HARDENED_CLAY_STAINED_RED,WOOL_RED,REDSTONE_BLOCK,HARDENED_CLAY_STAINED_ORANGE,WOOL_ORANGE,HARDENED_CLAY_STAINED_YELLOW,WOOL_YELLOW,WOOL_LIME,HARDENED_CLAY_STAINED_LIME,HARDENED_CLAY_STAINED_PURPLE,HARDENED_CLAY_STAINED_CYAN,WOOL_CYAN,WOOL_BLUE,HARDENED_CLAY_STAINED_BLUE,WOOL_GRAY,HARDENED_CLAY_STAINED_GREEN,WOOL_GREEN,HARDENED_CLAY_STAINED_BROWN,WOOL_BROWN,HARDENED_CLAY_STAINED_GRAY,WOOL_BLACK]));
 
-def calculate(pos):
+def positions(pos,scale):
+    yield pos
+    for i in range(AVOID_ISOLATES):
+        yield (uniform(pos[0]-0.5*scale,pos[0]+0.5*scale),
+               uniform(pos[1]-0.5*scale,pos[1]+0.5*scale),
+               uniform(pos[2]-0.5*scale,pos[2]+0.5*scale))
+
+def calculate0(pos):
     x,z,y = pos[0],pos[1],pos[2]
     cx,cy,cz = x,y,z
 
@@ -63,6 +75,13 @@ def calculate(pos):
     except:
         return 0
 
+def calculate(pos0,scale):
+    for pos in positions(pos0,scale):
+        r = calculate0(pos)
+        if r >= 0:
+            return r
+    return r
+
 #
 # we could of course just do for x in range(0,size): for y in range(0,size): yield(x,y)
 # but it will make users happier if we start at the player
@@ -86,28 +105,28 @@ def toBulb(centerMC,centerBulb,scale,x,y,z):
 def draw():
     count = 0
     
-    rangeX = list(range(cornerMC.x, cornerMC.x+size))
-    rangeY = list(range(cornerMC.y, cornerMC.y+size))
-    rangeZ = list(range(cornerMC.z, cornerMC.z+size))
+    rangeX = range(cornerMC.x, cornerMC.x+size)
+    rangeY = range(cornerMC.y, cornerMC.y+size)
+    rangeZ = range(cornerMC.z, cornerMC.z+size)
     
     if not half is None:
         if half == 'w':
-            rangeX = list(range(cornerMC.x, cornerMC.x+size/2))
+            rangeX = range(cornerMC.x, cornerMC.x+size/2)
         elif half == 'e':
-            rangeX = list(range(cornerMC.x+size/2, cornerMC.x+size))
+            rangeX = range(cornerMC.x+size/2, cornerMC.x+size)
         elif half == 'n':
-            rangeZ = list(range(cornerMC.z, cornerMC.z+size/2))
+            rangeZ = range(cornerMC.z, cornerMC.z+size/2)
         elif half == 's':
-            rangeZ = list(range(cornerMC.z+size/2, cornerMC.z+size))
+            rangeZ = range(cornerMC.z+size/2, cornerMC.z+size)
         elif half == 'u':
-            rangeY = list(range(cornerMC.y+size/2, cornerMC.y+size))
+            rangeY = range(cornerMC.y+size/2, cornerMC.y+size)
         elif half == 'd':
-            rangeY = list(range(cornerMC.y, cornerMC.y+size/2))
+            rangeY = range(cornerMC.y, cornerMC.y+size/2)
 
     for mcX in rangeX:
         for mcY in rangeY:
             for mcZ in rangeZ:
-                radius = calculate(toBulb(centerMC,centerBulb,scale,mcX,mcY,mcZ))
+                radius = calculate(toBulb(centerMC,centerBulb,scale,mcX,mcY,mcZ),scale)
                 if radius < 0:
                     mc.setBlock(mcX,mcY,mcZ,AIR)
                 else:

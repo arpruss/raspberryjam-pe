@@ -9,16 +9,10 @@ import os
 
 mc = Minecraft()
 
-playerId = mc.getPlayerId()
-try:
-   playerId = int(os.environ['MINECRAFT_PLAYER_ID'])
-except:
-   pass
-
 bridge = []
 
 while True:
-   pos = mc.entity.getTilePos(playerId)
+   pos = mc.player.getTilePos()
    pos.y = pos.y - 1
    belowBlock = mc.getBlock(pos)
    if belowBlock == AIR.id or belowBlock == WATER_FLOWING.id or belowBlock == WATER_STATIONARY.id:
