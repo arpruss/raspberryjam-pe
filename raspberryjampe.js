@@ -189,18 +189,21 @@ eventSync = {
           getAndClearChats: sync(_getAndClearChats),
           clearHits: sync(_clearHits),
           clearChats: sync(_clearChats),
-          restrictToSword: _restrictToSword };
+          restrictToSword: sync(_restrictToSword) };
 
 function useItem(x,y,z,itemId,blockId,side) {
    if (immutable) {
        preventDefault();
    }
    if (! hitRestrictedToSword || itemId == 267 || itemId == 268 || itemId == 272 || itemId == 276 || itemId == 283) {
-       eventSync.addHit([x,y,z,side,playerId]);
+       eventSync.addHit([x-spawnX,y-spawnY,z-spawnZ,side,playerId]);
    }
 }
 
 function destroyBlock(x,y,z,side) {
+   if (! hitRestrictedToSword) {
+       eventSync.addHit([x-spawnX,y-spawnY,z-spawnZ,side,playerId]);
+   }
    if (immutable) {
        preventDefault();
    }
@@ -322,10 +325,11 @@ function procCmd(cmdLine) {
         bundle.putString("param", "");
         dir = android.os.Environment.getExternalStorageDirectory().getAbsolutePath() + "/com.hipipal.qpyplus/scripts";
         cmds.shift();
+        cmds[0] = dir+"/"+cmds[0]+".py";
         var script = "import sys\n" +
              "sys.path.append('" + dir + "')\n"+
              "sys.argv = [" + quotedList(cmds) + "]\n"+
-             "execfile('" + dir + "/" + cmds[0] + ".py')\n";
+             "execfile('" + cmds[0] + "')\n";
         bundle.putString("pycode",script);
         intent.putExtras(bundle);
         context.startActivity(intent);
@@ -595,6 +599,12 @@ function handleCommand(cmd) {
    else if (m == "world.setting") {
        if (args.length >= 2 && args[0] == "world_immutable") {
            immutable = Boolean(parseInt(args[1]));
+       }
+   }
+   else if (m == "events.setting") {
+       if (args.length >= 2 && args[0] == "restrict_to_sword") {
+           eventSync.restrictToSword(parseInt(args[1]));
+           eventSync.clearHits();
        }
    }
    else if (m == "events.block.hits") {
