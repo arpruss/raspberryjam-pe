@@ -11,7 +11,7 @@
    n: non-destructive mode
    q: don't want the vehicle to flash as it is scanned
    l: load vehicle from vehicles/name.py
-   s: save vehicle to vehicles/name.py
+   s: save vehicle to vehicles/name.py and quit
 
  The vehicle detection algorithm works as follows:
    first, search for nearest non-terrain block within distance SCAN_DISTANCE of the player
@@ -24,6 +24,8 @@
 from mcpi.minecraft import *
 from mcpi.block import *
 from math import *
+from sys import maxsize
+from copy import copy
 import re
 
 class Vehicle():
@@ -42,13 +44,18 @@ class Vehicle():
     MAX_DISTANCE = 30
     stairDirectionsClockwise = [2, 1, 3, 0]
     stairToClockwise = [3, 1, 0, 2]
+    chestToClockwise = [0,0,0,2,3,1,0,0]
+    chestDirectionsClockwise = [2,5,3,4]
     STAIRS = set((STAIRS_COBBLESTONE.id, STAIRS_WOOD.id, 108, 109, 114, 128, 134, 135, 136, 156, 163, 164, 180))
+    DOORS = set((DOOR_WOOD.id,193,194,195,196,197,DOOR_IRON.id))
+    LADDERS_FURNACES_CHESTS_SIGNS = set((LADDER.id, FURNACE_ACTIVE.id, FURNACE_INACTIVE.id, CHEST.id, 130, 146, 68))
+    REDSTONE_COMPARATORS_REPEATERS = set((93,94,149,150,356,404))
     EMPTY = {}
 
     def __init__(self,mc,nondestructive=False):
         self.mc = mc
         self.nondestructive = nondestructive
-        self.highWater = -256
+        self.highWater = -maxsize-1
         self.baseVehicle = {}
         if hasattr(Minecraft, 'getBlockWithNBT'):
             self.getBlockWithData = self.mc.getBlockWithNBT
@@ -64,8 +71,12 @@ class Vehicle():
 
     @staticmethod
     def keyFunction(dict,erase,pos):
-        return (pos in dict and dict[pos].id in Vehicle.NEED_SUPPORT,
-                pos not in erase or erase[pos].id not in Vehicle.NEED_SUPPORT,
+        ns = pos in dict and dict[pos].id in Vehicle.NEED_SUPPORT
+        if ns:
+            return (True, pos not in erase or erase[pos].id not in Vehicle.NEED_SUPPORT,
+                pos[0],pos[2],pos[1])
+        else:
+            return (False, pos not in erase or erase[pos].id not in Vehicle.NEED_SUPPORT,
                 pos[1],pos[0],pos[2])
 
     @staticmethod
@@ -204,7 +215,7 @@ class Vehicle():
         self.baseVehicle = dict
 
     def setHighWater(self,y):
-        self.highWater = -256;
+        self.highWater = y;
 
     def addBubble(self):
         positions = set()
@@ -245,14 +256,30 @@ class Vehicle():
     def rotateBlock(block,amount):
         if block.id in Vehicle.STAIRS:
             meta = block.data
-            return Block(block.id, (meta & ~0x03) | 
+            return Block(block.id, (meta & ~0x03) |
                          Vehicle.stairDirectionsClockwise[(Vehicle.stairToClockwise[meta & 0x03] + amount) % 4])
+        elif block.id in Vehicle.LADDERS_FURNACES_CHESTS_SIGNS:
+            meta = block.data & 0x07
+            block = copy(block)
+            block.data = Vehicle.chestDirectionsClockwise[(Vehicle.chestToClockwise[meta] + amount) % 4]
+            return block
         elif block.id == STONE_BUTTON.id or block.id == WOOD_BUTTON.id:
             direction = block.data & 0x07
             if direction < 1 or direction > 4:
                 return block
             direction = 1 + Vehicle.stairDirectionsClockwise[(Vehicle.stairToClockwise[direction-1] + amount) % 4]
             return Block(block.id, (block.data & ~0x07) | direction)
+        elif block.id in Vehicle.REDSTONE_COMPARATORS_REPEATERS:
+            return Block(block.id, (block.data & ~0x03) | (((block.data & 0x03) + amount) & 0x03))
+        elif block.id == 96 or block.id == 167:
+            # trapdoors
+            return Block(block.id, (block.data & ~0x03) | (((block.data & 0x03) - amount) & 0x03))
+        elif block.id in Vehicle.DOORS:
+            meta = block.data
+            if meta & 0x08:
+                return block
+            else:
+                return Block(block.id, (meta & ~0x03) | (((meta & 0x03) + amount) & 0x03))
         else:
             return block
 
@@ -321,7 +348,7 @@ if __name__ == '__main__':
     import time
     import sys
     import os
-    
+
     def save(name):
         dir = os.path.join(os.path.dirname(sys.argv[0]),"vehicles")
         try:
@@ -337,16 +364,61 @@ if __name__ == '__main__':
         minecraft.postToChat('Vehicle "'+name+'" loaded.')
 
     def chatHelp():
+        minecraft.postToChat("vlist: list vehicles")
         minecraft.postToChat("verase: erase vehicle and exit")
         minecraft.postToChat("vsave filename: save vehicle")
         minecraft.postToChat("vload filename: load vehicle")
         minecraft.postToChat("vdriver [EntityName]: set driver to entity (omit for player) [Jam only]")
+
+    def doScanRectangularPrism(vehicle, basePos, startRot):
+        minecraft.postToChat("Indicate extreme points with sword right-click.")
+        minecraft.postToChat("Double-click when done.")
+        corner1 = [None,None,None]
+        corner2 = [None,None,None]
+        prevHit = None
+        done = False
+
+        minecraft.events.pollBlockHits()
+
+        while not done:
+            hits = minecraft.events.pollBlockHits()
+            if len(hits) > 0:
+                for h in hits:
+                    if prevHit != None and h.pos == prevHit.pos:
+                        done = True
+                        break
+                    if corner1[0] == None or h.pos.x < corner1[0]: corner1[0] = h.pos.x
+                    if corner1[1] == None or h.pos.y < corner1[1]: corner1[1] = h.pos.y
+                    if corner1[2] == None or h.pos.z < corner1[2]: corner1[2] = h.pos.z
+                    if corner2[0] == None or h.pos.x > corner2[0]: corner2[0] = h.pos.x
+                    if corner2[1] == None or h.pos.y > corner2[1]: corner2[1] = h.pos.y
+                    if corner2[2] == None or h.pos.z > corner2[2]: corner2[2] = h.pos.z
+                    minecraft.postToChat(""+str(corner2[0]-corner1[0]+1)+"x"+str(corner2[1]-corner1[1]+1)+"x"+str(corner2[2]-corner1[2]+1))
+                    prevHit = h
+            else:
+                prevHit = None
+            time.sleep(0.25)
+
+        minecraft.postToChat("Scanning region")
+        dict = {}
+        for x in range(corner1[0],corner2[0]+1):
+            for y in range(corner1[1],corner2[1]+1):
+                for z in range(corner1[2],corner2[2]+1):
+                    block = vehicle.getBlockWithData(x,y,z)
+                    if block.id != AIR.id and block.id != WATER_STATIONARY.id and block.id != WATER_FLOWING.id:
+                        pos = (x-basePos.x,y-basePos.y,z-basePos.z)
+                        dict[pos] = block
+        minecraft.postToChat("Found "+str(len(dict))+" blocks")
+        vehicle.setVehicle(dict, startRot)
 
     bubble = False
     nondestructive = False
     flash = True
     loadName = None
     saveName = None
+    scanRectangularPrism = False
+    exitAfterDraw = False
+    noInitialRotate = False
 
     if len(sys.argv)>1:
         for x in sys.argv[1]:
@@ -360,6 +432,11 @@ if __name__ == '__main__':
                 saveName = sys.argv[2]
             elif x == 'l' and len(sys.argv)>2:
                 loadName = sys.argv[2]
+            elif x == 'L' and len(sys.argv)>2:
+                loadName = sys.argv[2]
+                exitAfterDraw = True
+            elif x == 'r':
+                scanRectangularPrism = True
 
     minecraft = Minecraft()
 
@@ -367,13 +444,16 @@ if __name__ == '__main__':
     getTilePos = minecraft.player.getTilePos
 
     vehiclePos = getTilePos()
+    startRot = getRotation()
 
     vehicle = Vehicle(minecraft,nondestructive)
     if loadName:
         load(loadName)
+    elif scanRectangularPrism:
+        doScanRectangularPrism(vehicle,vehiclePos,startRot)
     else:
         minecraft.postToChat("Scanning vehicle")
-        vehicle.scan(vehiclePos.x,vehiclePos.y,vehiclePos.z,getRotation(),flash)
+        vehicle.scan(vehiclePos.x,vehiclePos.y,vehiclePos.z,startRot,flash)
         minecraft.postToChat("Number of blocks: "+str(len(vehicle.baseVehicle)))
         if bubble:
             minecraft.postToChat("Scanning for air bubble")
@@ -381,8 +461,18 @@ if __name__ == '__main__':
         if len(vehicle.baseVehicle) == 0:
             minecraft.postToChat("Make a vehicle and then stand on or in it when starting this script.")
             exit()
+
     if saveName:
         save(saveName)
+        exit()
+        minecraft.postToChat("Saved: exiting.")
+
+    if exitAfterDraw:
+        minecraft.postToChat("Drawing")
+        vehicle.draw(vehiclePos.x,vehiclePos.y,vehiclePos.z,startRot)
+        minecraft.postToChat("Done")
+        exit(0)
+
     minecraft.postToChat("Now walk around.")
 
     entity = None
@@ -401,7 +491,7 @@ if __name__ == '__main__':
                 if len(args)>0:
                     if args[0] == 'vhelp':
                         chatHelp()
-                    if args[0] == 'verase':
+                    elif args[0] == 'verase':
                         vehicle.erase()
                         exit()
                     elif args[0] == 'vsave':
@@ -409,6 +499,22 @@ if __name__ == '__main__':
                             save(args[1])
                         else:
                             chatHelp()
+                    elif args[0] == 'vlist':
+                        try:
+                             out = None
+                             dir = os.path.join(os.path.dirname(sys.argv[0]),"vehicles")
+                             for f in os.listdir(dir):
+                                 if f.endswith(".py"):
+                                     if out is not None:
+                                         out += ' '+f[:-3]
+                                     else:
+                                         out = f[:-3]
+                             if out is None:
+                                 minecraft.postToChat('No saved vehicles')
+                             else:
+                                 minecraft.postToChat(out)
+                        except:
+                             minecraft.postToChat('Error listing (maybe no directory?)')
                     elif args[0] == 'vload':
                         if len(args) > 1:
                             try:
@@ -423,6 +529,10 @@ if __name__ == '__main__':
                         if entity != None:
                             minecraft.removeEntity(entity)
                             entity = None
+                        else:
+                            direction = minecraft.player.getDirection()*10
+                            direction.y = 0
+                            minecraft.player.setPos(pos + direction)
                         if len(args) > 1:
                             try:
                                 entity = minecraft.spawnEntity(args[1],pos.x,pos.y,pos.z)
