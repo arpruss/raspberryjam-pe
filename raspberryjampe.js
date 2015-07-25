@@ -326,8 +326,10 @@ function procCmd(cmdLine) {
         dir = android.os.Environment.getExternalStorageDirectory().getAbsolutePath() + "/com.hipipal.qpyplus/scripts";
         cmds.shift();
         cmds[0] = dir+"/"+cmds[0]+".py";
-        var script = "import sys\n" +
+        var script = "import sys\n"+
+             "import os\n"+
              "sys.path.append('" + dir + "')\n"+
+             "os.chdir('" + dir + "')\n"+
              "sys.argv = [" + quotedList(cmds) + "]\n"+
              "execfile('" + cmds[0] + "')\n";
         bundle.putString("pycode",script);
