@@ -5,8 +5,8 @@
     android:versionName="1.13" >
 
     <application
-        android:label="Raspberry Jam Mod"
-        android:icon="@drawable/icon" >
+        android:icon="@drawable/icon"
+        android:label="Raspberry Jam Mod" >
         <activity
             android:name="mobi.omegacentauri.rjm.MainActivity"
             android:label="Raspberry Jam Mod" >
@@ -16,9 +16,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name="mobi.omegacentauri.rjm.SendToMCPE"
+            android:label="Photo to MCPE" >
+            <intent-filter android:label="Photo to MCPE" >
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
     </application>
-    
-    <uses-sdk android:minSdkVersion="9" android:targetSdkVersion="19" />
- <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />    
-    
+
+    <uses-sdk
+        android:minSdkVersion="9"
+        android:targetSdkVersion="19" />
+
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.INTERNET"/>
+
 </manifest>

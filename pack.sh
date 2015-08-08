@@ -14,7 +14,7 @@ rm -r p3/scripts/mcpi/__pycache__
 cp -r ../mc/python2-scripts/mcpipy/{models,vehicles} p3/scripts
 rm p3/scripts/neurosky.py
 rm p[23]/scripts/*.pyc p[23]/scripts/*/*.pyc
-sed --in-place='' 's/^isPE.*/isPE = True/' p[23]/scripts/mcpi/settings.py
+sed --in-place='' 's/^minecraftType.*/minecraftType = MINECRAFT_POCKET_EDITION/' p[23]/scripts/mcpi/settings.py
 echo 'address = "127.0.0.1"' > p2/scripts/server.py
 echo 'is_pi = False' >> p2/scripts/server.py
 echo 'address = "127.0.0.1"' > p3/scripts/server.py

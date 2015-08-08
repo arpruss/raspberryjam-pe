@@ -4,14 +4,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -25,25 +25,19 @@ import android.text.Html;
 import android.text.method.LinkMovementMethod;
 import android.util.Log;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import java.util.Comparator;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-
-import mobi.omegacentauri.rjm.R;
 
 public class MainActivity extends Activity {
 	private SharedPreferences options;
 	private Spinner pythonVersionSpinner;
 	private Spinner overwriteModeSpinner;
+	private boolean haveQPython;
+	private boolean haveMinecraft;
+	private Object bl;
 
 	static final String SCRIPTS = "/com.hipipal.qpyplus"; 
 	static final int PYTHON2 = 0;
@@ -91,7 +85,54 @@ public class MainActivity extends Activity {
     }
     
     public void onInstall(View v) {
-    	new InstallerTask(this).execute();
+    	if (! haveMinecraft) {
+			AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+
+			alertDialog.setTitle("Need Minecraft");
+			alertDialog.setMessage("To install Raspberry Jam Mod, you need to install Minecraft Pocket Edition first.");
+			alertDialog.setButton(DialogInterface.BUTTON_POSITIVE, 
+					"OK", 
+					new DialogInterface.OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {} });
+			alertDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+				public void onCancel(DialogInterface dialog) {} });
+			alertDialog.show();
+    	}
+    	else if (bl == null) {
+			AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+
+			alertDialog.setTitle("Need BlockLauncher");
+			alertDialog.setMessage("To install Raspberry Jam Mod, you need to install BlockLauncher or BlockLauncher Pro first.");
+			alertDialog.setButton(DialogInterface.BUTTON_POSITIVE, 
+					"OK", 
+					new DialogInterface.OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {} });
+			alertDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+				public void onCancel(DialogInterface dialog) {} });
+			alertDialog.show();
+    	}
+    	else if (! haveQPython) {
+			AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+
+			alertDialog.setTitle("Need QPython");
+			alertDialog.setMessage("To run python scripts, you will need to install QPython. But if you insist on installing Raspberry Jam Mod before installing QPython, you're free to do that.");
+			alertDialog.setButton(DialogInterface.BUTTON_POSITIVE, 
+					"Install mod", 
+					new DialogInterface.OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {
+			    	new InstallerTask(MainActivity.this).execute();
+				} });
+			alertDialog.setButton(DialogInterface.BUTTON_NEGATIVE, 
+					"Cancel", 
+					new DialogInterface.OnClickListener() {
+				public void onClick(DialogInterface dialog, int which) {} });
+			alertDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+				public void onCancel(DialogInterface dialog) {} });
+			alertDialog.show();    		
+    	}
+    	else {
+    		new InstallerTask(this).execute();
+    	}
     }
     
     public void showInstructions() {
@@ -102,22 +143,17 @@ public class MainActivity extends Activity {
     	
     	String store = MarketDetector.getStoreLink(this);
     	
-    	boolean haveMinecraft;
-
     	try {
 			haveMinecraft = null != getPackageManager().getPackageInfo("com.mojang.minecraftpe", 0);
 		} catch (NameNotFoundException e) {
 			haveMinecraft = false;
 		}
     	
-    	boolean haveAll = true;    	
-    	
     	if (haveMinecraft) {
     		message += "<p>1. You have Minecraft PE installed. Excellent!</p>";
     	}
     	else {
 			message += "<p>1. Install <a href='"+store+"com.mojang.minecraftpe'>Minecraft PE</a>.</p>";
-			haveAll = false;
     	}
 
     	String qpythonReadable;
@@ -131,8 +167,6 @@ public class MainActivity extends Activity {
 //    		qpythonPackage = "com.hipipal.qpy3";
 //    	}
     	
-    	boolean haveQPython;
-    	
 		try {
 			haveQPython = null != getPackageManager().getPackageInfo(qpythonPackage, 0);
 		} catch (NameNotFoundException e) {
@@ -144,7 +178,6 @@ public class MainActivity extends Activity {
 		}
 		else {
 			message += "<p>2. Install <a href='"+store+qpythonPackage+"'>"+qpythonReadable+"</a>.</p>";
-			haveAll = false;
 		}
 		
 		try {
@@ -153,7 +186,7 @@ public class MainActivity extends Activity {
 			haveQPython = false;
 		}
 
-		String bl = null;
+		bl = null;
 		boolean haveBLPro;
 		try {
 			haveBLPro = null != getPackageManager().getPackageInfo("net.zhuoweizhang.mcpelauncher.pro", 0);
@@ -181,23 +214,20 @@ public class MainActivity extends Activity {
 			message += "<p>3. Install <a href='"+store+"net.zhuoweizhang.mcpelauncher.pro'>BlockLauncher Pro</a> or the free "+
 					"<a href='"+store+"net.zhuoweizhang.mcpelauncher'>BlockLauncher</a>.</p>";
 			bl = "BlockLauncher";
-			haveAll = false;
 		} 
 		else {
 			message += "<p>3. You have "+bl+" installed. Excellent!</p>"; 	
 		}
 //    	message += "<p><b>Update:</b> If you're using Minecraft 0.11.1, you may need the <a href='http://zhuoweizhang.net/MCPELauncher/'>beta version</a> of BlockLauncher (uninstall release version first to avoid confusion).</p>";
 		
-		message += "<p>4. Tap on the 'Install' button and agree to install mod." + (haveAll?"":" (The button will show up once the above steps are done.)")+"</p>";
+		message += "<p>4. Tap on the 'Install' button and agree to install mod.</p>";
 
 		tv.setText(Html.fromHtml(message));
 		
-		ViewGroup install = (ViewGroup)findViewById(R.id.install);
-		install.setVisibility(haveAll ? View.VISIBLE : View.INVISIBLE);
     	tv = (TextView)findViewById(R.id.instructions2);
     	tv.setMovementMethod(LinkMovementMethod.getInstance());
 		message = "";		
-		message += "<p>5. Go to "+bl+", make sure screen is in landcape mode (it may crash in portrait) and tap on the wrench button.</p>";
+		message += "<p>5. Go to "+bl+" and tap on the wrench button.</p>";
 		message += "<p>6. Choose 'Manage ModPE Scripts', and make sure switch is on 'ON'.</p>";
 		message += "<p>7. Tap on 'raspberryjampe.js' and choose 'Enable'.</p>";
 		message += "<p>8. Press BACK and then start Minecraft PE inside BlockLauncher with 'Play'.</p>";
