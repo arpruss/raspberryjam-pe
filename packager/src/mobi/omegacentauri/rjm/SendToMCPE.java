@@ -95,7 +95,6 @@ public class SendToMCPE extends Activity {
 					final Bitmap bmp = ri.bmp;
 
 					new Thread(new Runnable(){
-
 						@Override
 						public void run() {
 							try {
@@ -204,22 +203,25 @@ public class SendToMCPE extends Activity {
 				int zx;
 				int zy;
 				if (yaw == 180) {
+					// OK
 					zx = 0;
 					zy = -1;
 					xx = 1;
 					xy = 0;
 				}
 				else if (yaw == 0) {
+					// OK
 					zx = 0;
 					zy = 1;
 					xx = -1;
 					xy = 0;
 				}
 				else if (yaw == 90) {
-					zx = 0;
-					zy = 1;
-					xx = -1;
-					xy = 0;
+					// OK
+					zx = -1;
+					zy = 0;
+					xx = 0;
+					xy = -1;
 				}
 				else { // 270
 					zx = 1; //ok
