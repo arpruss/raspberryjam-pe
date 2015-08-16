@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    >
+
+<TextView
+    android:id="@+id/inRes"
+    android:textSize="16sp"
+    android:text="Input: "
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" />
+
+<LinearLayout android:orientation="horizontal"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" >
+
+<TextView
+    android:textSize="16sp"
+    android:text="Output: "
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" />
+
+<TextView
+    android:id="@+id/resX"
+    android:textSize="16sp"
+    android:text="120"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" />
+
+<TextView
+    android:textSize="16sp"
+    android:text=" x "
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" />
+
+<EditText
+    android:id="@+id/resY"
+    android:imeOptions="flagNoExtractUi"
+    android:lines="1"
+    android:text="100"
+    android:textSize="16sp"
+	android:inputType="number"
+	android:layout_width="80sp"
+	android:focusableInTouchMode="true"
+	android:focusable="true"
+	android:layout_height="wrap_content" />
+</LinearLayout>
+
+<CheckBox 
+    android:id="@+id/dither"
+    android:textSize="16sp"
+    android:layout_height="wrap_content"
+    android:layout_width="wrap_content"
+    android:text="Dither"
+    />
+
+<Button
+   	android:textSize="20sp"
+   	android:text="Send to MCPE"
+   	android:layout_width="wrap_content"
+   	android:layout_height="wrap_content" 
+   	android:onClick="onSend"/>
+
+</LinearLayout>

@@ -17,6 +17,7 @@ import android.app.AlertDialog;
 import android.content.ContentResolver;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -24,8 +25,16 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.View;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class SendToMCPE extends Activity {
@@ -34,7 +43,19 @@ public class SendToMCPE extends Activity {
 	private int maxHeight = 110;
 	static final int INVALID_ROTATION = -360000;
 	int fuzz = 0;
-	static final int COLORS[][] = {
+	private Bundle extras;
+	private SharedPreferences options;
+	private int orientation;
+	private int inHeight;
+	private int inWidth;
+	private Bitmap inBmp;
+	private double aspect;
+	private TextView resX;
+	private EditText resY;
+	private CheckBox dither;
+	private static final String PHOTO_RES_Y = "photoResY";
+	private static final String PHOTO_DITHER = "photoDither";
+	static final short COLORS[][] = {
 		{35,0, 222,222,222},
 		{35,1, 219,125,63},
 		{35,2, 180,81,189},
@@ -77,43 +98,166 @@ public class SendToMCPE extends Activity {
 		if (DEBUG )
 			Log.v("SendReduced", s);
 	}
+	
+	public void safeToast(final String msg) {
+		runOnUiThread(new Runnable() {
 
-	/** Called when the activity is first created. */
+			@Override
+			public void run() {
+				Toast.makeText(SendToMCPE.this, msg, Toast.LENGTH_LONG).show();
+			}});
+	}
+
+    public void onSend(View v) {
+    	int h = 1;
+    	
+		try {
+			h = Integer.parseInt(resY.getText().toString());
+		}
+		catch (Exception e) {}
+		
+		int w = (int) (aspect * h + 0.5);
+		if (w <= 0)
+			w = 1;
+		
+		boolean d = dither.isChecked();
+		SharedPreferences.Editor ed = options.edit();
+		ed.putInt(PHOTO_RES_Y, h);
+		ed.putBoolean(PHOTO_DITHER, d);
+		ed.commit();
+
+		Matrix m = new Matrix();
+
+		m.postScale(w/(float)inWidth, h/(float)inHeight);
+
+		if (INVALID_ROTATION != orientation) {
+			m.postRotate(orientation);
+		}
+
+		final Bitmap bmp = Bitmap.createBitmap(inBmp, 0, 0, inWidth, inHeight, m, true);
+		new Thread(new Runnable(){
+			@Override
+			public void run() {
+				try {
+					sendToMinecraft(bmp, true);
+				} catch (Exception e) {
+					Log.e("rjm", ""+e);
+					safeToast("Error: RaspberryJamMod not running?");
+				} finally {
+					bmp.recycle();
+				}
+			}}).start();
+		finish();
+    }
+
+    	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+        options = PreferenceManager.getDefaultSharedPreferences(this);
+        setContentView(R.layout.photo);
 
 		cr = getContentResolver();
 		Intent i = getIntent();
-		Bundle e = i.getExtras();
-		if (i.getAction().equals(Intent.ACTION_SEND)) {
-			if (e != null &&
-					e.containsKey(Intent.EXTRA_STREAM))  {
-				ReducedImage ri = new ReducedImage(
-						(Uri)e.getParcelable(Intent.EXTRA_STREAM));
-				if (ri.bmp != null) {
-					final Bitmap bmp = ri.bmp;
+		
+		if (! i.getAction().equals(Intent.ACTION_SEND)) 
+			finish();
+		
+		load(i.getExtras());
+	}
+	
+	@Override
+	public void onNewIntent(Intent i) {
+		if (! i.getAction().equals(Intent.ACTION_SEND)) 
+			finish();
+		
+		load(i.getExtras());
+	}
+	
+	void load(Bundle extras) {
+		if (extras == null ||
+				! extras.containsKey(Intent.EXTRA_STREAM)) {
+			Toast.makeText(this, "Cannot load image", Toast.LENGTH_LONG);
+			finish();
+			return;
+		}
 
-					new Thread(new Runnable(){
-						@Override
-						public void run() {
-							try {
-								sendToMinecraft(bmp);
-								bmp.recycle();
-							} catch (Exception e) {
-								Log.e("rjm", ""+e);
-								runOnUiThread(new Runnable() {
+		Uri uri = (Uri)extras.getParcelable(Intent.EXTRA_STREAM);
+		byte[] data;
+		
+		try {
+			data = getStreamBytes(cr.openInputStream(uri));
+		} catch (FileNotFoundException e) {
+			SendToMCPE.log("error reading: "+e);
+			return;
+		}
 
-									@Override
-									public void run() {
-										Toast.makeText(SendToMCPE.this, "Error: RaspberryJamMod not running?", Toast.LENGTH_LONG).show();
-									}});
-							}
-						}}).start();
+		if (data == null) 
+			return;
+
+		SendToMCPE.log("need to decode "+data.length+" bytes");
+
+		orientation = getOrientation(cr, uri);
+		SendToMCPE.log("orientation = "+orientation);
+
+		inBmp = BitmapFactory.decodeByteArray(data, 0, data.length);
+
+		if (inBmp == null) {
+			Toast.makeText(this, "Cannot load image", Toast.LENGTH_LONG);
+			finish();
+			return;
+		}
+
+		inHeight = inBmp.getHeight();
+		inWidth = inBmp.getWidth();
+		
+		if (inHeight == 0 || inWidth == 0) {
+			Toast.makeText(this, "Invalid image size", Toast.LENGTH_LONG);
+			finish();
+			return;
+		}
+		
+		aspect = (double)inWidth / inHeight;
+		TextView inRes = (TextView) findViewById(R.id.inRes);
+		inRes.setText("Input: "+inWidth+" x "+inHeight);
+		resX = (TextView) findViewById(R.id.resX);
+		resY = (EditText) findViewById(R.id.resY);
+		int h = options.getInt(PHOTO_RES_Y, 100);
+		int w = (int) (aspect * h + 0.5);
+		if (w <= 0)
+			w = 1;
+		resX.setText(""+w);
+		resY.setText(""+h);
+		resY.selectAll();
+		TextWatcher watcher = new TextWatcher() {
+			
+			@Override
+			public void onTextChanged(CharSequence s, int start, int before, int count) {
+			}
+			
+			@Override
+			public void beforeTextChanged(CharSequence s, int start, int count,
+					int after) {
+			}
+			
+			@Override
+			public void afterTextChanged(Editable s) {
+				try {
+					int h = Integer.parseInt(s.toString());
+					int w = (int) (aspect * h + 0.5);
+					if (w <= 0)
+						w = 1;
+					resX.setText(""+w);
+				}
+				catch (Exception e) {
+					resX.setText("1");
 				}
 			}
-			finish();
-		}
+		};
+		resY.addTextChangedListener(watcher);
+		boolean d = options.getBoolean(PHOTO_DITHER, false);
+		dither = (CheckBox)findViewById(R.id.dither);
+		dither.setChecked(d);		
 	}
 
 	int[] getTilePos(PrintWriter out, BufferedReader reader) throws Exception {
@@ -156,9 +300,9 @@ public class SendToMCPE extends Activity {
 			for (int x = 0; x < w ; x++)
 				for (int y = 0 ; y < h ; y++) {
 					int c = bmp.getPixel(x,h-1-y);
-					in[x][y][0] = Color.red(c);
-					in[x][h-1-y][1] = Color.green(c);
-					in[x][h-1-y][2] = Color.blue(c);
+					in[x][y][0] = (short) Color.red(c);
+					in[x][y][1] = (short) Color.green(c);
+					in[x][y][2] = (short) Color.blue(c);
 				}
 			
 			dither(outPixel, in, w, h);
@@ -167,12 +311,13 @@ public class SendToMCPE extends Activity {
 			for (int x = 0; x < w ; x++)
 				for (int y = 0 ; y < h ; y++) {
 					int c = bmp.getPixel(x,h-1-y);
-					int[] b = closestMinecraft(Color.red(c),Color.green(c),Color.blue(c));
+					short[] b = closestMinecraft((short)Color.red(c),(short)Color.green(c),(short)Color.blue(c));
 					outPixel[x][y][0] = b[0];
 					outPixel[x][y][1] = b[1];
 				}
 		}
-		
+
+		safeToast("Sending to Minecraft");
 		Socket s = new Socket("127.0.0.1", 4711);
 		try {
 			PrintWriter out = new PrintWriter(s.getOutputStream(), true);
@@ -264,6 +409,7 @@ public class SendToMCPE extends Activity {
 					for (int y = 0; y <h ; y++) 
 						sendPixelToMinecraft(out, pos[0]+x*xx+y*xy,pos[1],pos[2]+x*zx+y*zy, outPixel[x][y]);
 			}
+			safeToast("Sent!");
 		}
 		finally {
 			try {
@@ -273,11 +419,11 @@ public class SendToMCPE extends Activity {
 		}
 	}
 
-	private int[] closestMinecraft(int r,int g,int b) {
+	private short[] closestMinecraft(short r,short g,short b) {
 		int bestDist = Integer.MAX_VALUE;
-		int[] bestBlock = COLORS[0];
-		for (int[] block : COLORS) {
-			int d = (r-block[2])*(r-block[2])+(g-block[3])*(g-block[3])+(b-block[4])*(b-block[4]);
+		short[] bestBlock = COLORS[0];
+		for (short[] block : COLORS) {
+			int d = (r-(int)block[2])*(r-(int)block[2])+(g-(int)block[3])*(g-(int)block[3])+(b-(int)block[4])*(b-(int)block[4]);
 			if (d < bestDist) {
 				bestBlock = block;
 				bestDist = d;
@@ -286,23 +432,24 @@ public class SendToMCPE extends Activity {
 		return bestBlock;
 	}
 
+	/* modifies in */
 	private void dither(short[][][] out, short[][][] in, int w, int h) {
 		for (int y = 0 ; y < h ; y++) 
 			for (int x = 0; x < w ; x++) {
 				short[] inPixel = in[x][y];
-				int[] b = closestMinecraft(inPixel[0],inPixel[1],inPixel[2]);
+				short[] b = closestMinecraft(inPixel[0],inPixel[1],inPixel[2]);
 				out[x][y][0] = (short) b[0];
 				out[x][y][1] = (short) b[1];
 				for (int i = 0 ; i < 3 ; i++) {
-					short err = inPixel[i] - b[2+i];
+					short err = (short) (inPixel[i] - b[2+i]);
 					if (x + 1 < w)
-						inPixel[x+1][y][i]   += err * 7 / 16;
+						in[x+1][y][i] += err * 7 / 16;
 					if (y + 1 < h) {
 						if (0 < x)
-							inPixel[x-1][y+1][i] += err * 3 / 16;
-						inPixel[x][y+1][i]   += err * 5/16;
+							in[x-1][y+1][i] += err * 3 / 16;
+						in[x][y+1][i]   += err * 5/16;
 						if (x + 1 < w)
-							inPixel[x+1][y+1][i] += err / 16;
+							in[x+1][y+1][i] += err / 16;
 					}
 				}
 			}
@@ -352,67 +499,5 @@ public class SendToMCPE extends Activity {
 		}
 
 		return data;
-	}
-
-	class ReducedImage {
-		long date;
-		Bitmap bmp;
-
-		public ReducedImage(Uri uri) {
-			bmp = null;
-
-			SendToMCPE.log("Reducing "+uri);
-			byte[] data;
-			try {
-				data = getStreamBytes(cr.openInputStream(uri));
-			} catch (FileNotFoundException e) {
-				SendToMCPE.log("error reading: "+e);
-				return;
-			}
-
-			if (data == null) 
-				return;
-
-			date = -1;
-			if (uri.getScheme().equalsIgnoreCase("file")) {
-				File f = new File(uri.getPath());
-				date = f.lastModified();
-			}
-
-			SendToMCPE.log("need to decode "+data.length+" bytes");
-
-			int o = getOrientation(cr, uri);
-			SendToMCPE.log("orientation = "+o);
-
-			Bitmap inBmp = BitmapFactory.decodeByteArray(data, 0, data.length);
-
-			if (inBmp == null) {
-				SendToMCPE.log("error decoding");
-				return;
-			}
-
-			int h = inBmp.getHeight();
-			int w = inBmp.getWidth();
-
-			boolean transform = false;
-
-			Matrix m = new Matrix();
-
-			if (h > maxHeight) {
-				m.postScale(maxHeight / (float)h, maxHeight / (float)h);
-			}
-
-			if (INVALID_ROTATION != o) {
-				m.postRotate(o);
-				transform = true;
-			}
-
-			SendToMCPE.log("image: "+w+"x"+h+" ["+o+"]");
-
-			if (transform)
-				bmp = Bitmap.createBitmap(inBmp, 0, 0, w, h, m, true);
-			else
-				bmp = inBmp;
-		}
 	}
 }
