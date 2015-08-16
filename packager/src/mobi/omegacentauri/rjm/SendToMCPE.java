@@ -143,10 +143,36 @@ public class SendToMCPE extends Activity {
 		return Double.parseDouble(value);
 	}
 
-	void sendToMinecraft(Bitmap bmp) throws Exception {
+	// Floyd-Steinberg
+	void sendToMinecraft(Bitmap bmp, Boolean dither) throws Exception {
 		Log.v("rjm", "sendToMinecraft");
 		int w = bmp.getWidth();
 		int h = bmp.getHeight();
+		short[][][] outPixel = new short[w][h][2]; 
+		
+		if (dither) {
+			short[][][] in = new short[w][h][3];
+			
+			for (int x = 0; x < w ; x++)
+				for (int y = 0 ; y < h ; y++) {
+					int c = bmp.getPixel(x,h-1-y);
+					in[x][y][0] = Color.red(c);
+					in[x][h-1-y][1] = Color.green(c);
+					in[x][h-1-y][2] = Color.blue(c);
+				}
+			
+			dither(outPixel, in, w, h);
+		}
+		else {
+			for (int x = 0; x < w ; x++)
+				for (int y = 0 ; y < h ; y++) {
+					int c = bmp.getPixel(x,h-1-y);
+					int[] b = closestMinecraft(Color.red(c),Color.green(c),Color.blue(c));
+					outPixel[x][y][0] = b[0];
+					outPixel[x][y][1] = b[1];
+				}
+		}
+		
 		Socket s = new Socket("127.0.0.1", 4711);
 		try {
 			PrintWriter out = new PrintWriter(s.getOutputStream(), true);
@@ -195,7 +221,7 @@ public class SendToMCPE extends Activity {
 				out.println("player.setTile("+(pos[0]+backX)+","+pos[1]+","+(pos[2]+backZ)+")");
 				for (int x = 0 ; x < w; x++)
 					for (int y = 0; y <h ; y++) 
-						sendPixelToMinecraft(out, pos[0]+x*dx,pos[1]+y,pos[2]+x*dz, bmp.getPixel(x, h-1-y));
+						sendPixelToMinecraft(out, pos[0]+x*dx,pos[1]+y,pos[2]+x*dz, outPixel[x][y]);
 			}
 			else {
 				int xx;
@@ -236,7 +262,7 @@ public class SendToMCPE extends Activity {
 				}
 				for (int x = 0 ; x < w; x++)
 					for (int y = 0; y <h ; y++) 
-						sendPixelToMinecraft(out, pos[0]+x*xx+y*xy,pos[1],pos[2]+x*zx+y*zy, bmp.getPixel(x, h-1-y));
+						sendPixelToMinecraft(out, pos[0]+x*xx+y*xy,pos[1],pos[2]+x*zx+y*zy, outPixel[x][y]);
 			}
 		}
 		finally {
@@ -247,11 +273,7 @@ public class SendToMCPE extends Activity {
 		}
 	}
 
-	private void sendPixelToMinecraft(PrintWriter out, int x, int y, int z,
-			int c) {
-		int r = (int) (Color.red(c) + (Math.random()-0.5)*fuzz);
-		int g = (int) (Color.green(c) + (Math.random()-0.5)*fuzz);
-		int b = (int) (Color.blue(c) + (Math.random()-0.5)*fuzz);
+	private int[] closestMinecraft(int r,int g,int b) {
 		int bestDist = Integer.MAX_VALUE;
 		int[] bestBlock = COLORS[0];
 		for (int[] block : COLORS) {
@@ -261,6 +283,33 @@ public class SendToMCPE extends Activity {
 				bestDist = d;
 			}
 		}
+		return bestBlock;
+	}
+
+	private void dither(short[][][] out, short[][][] in, int w, int h) {
+		for (int y = 0 ; y < h ; y++) 
+			for (int x = 0; x < w ; x++) {
+				short[] inPixel = in[x][y];
+				int[] b = closestMinecraft(inPixel[0],inPixel[1],inPixel[2]);
+				out[x][y][0] = (short) b[0];
+				out[x][y][1] = (short) b[1];
+				for (int i = 0 ; i < 3 ; i++) {
+					short err = inPixel[i] - b[2+i];
+					if (x + 1 < w)
+						inPixel[x+1][y][i]   += err * 7 / 16;
+					if (y + 1 < h) {
+						if (0 < x)
+							inPixel[x-1][y+1][i] += err * 3 / 16;
+						inPixel[x][y+1][i]   += err * 5/16;
+						if (x + 1 < w)
+							inPixel[x+1][y+1][i] += err / 16;
+					}
+				}
+			}
+	}
+
+	private void sendPixelToMinecraft(PrintWriter out, int x, int y, int z,
+			short[] bestBlock) {
 		out.println("world.setBlock("+x+","+y+","+z+","+bestBlock[0]+","+bestBlock[1]+")");
 	}
 
