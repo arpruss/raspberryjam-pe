@@ -40,10 +40,8 @@ import android.widget.Toast;
 public class SendToMCPE extends Activity {
 	private static boolean DEBUG = true;
 	public ContentResolver cr;
-	private int maxHeight = 110;
 	static final int INVALID_ROTATION = -360000;
 	int fuzz = 0;
-	private Bundle extras;
 	private SharedPreferences options;
 	private int orientation;
 	private int inHeight;
