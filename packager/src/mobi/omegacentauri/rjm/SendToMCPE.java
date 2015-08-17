@@ -53,6 +53,7 @@ public class SendToMCPE extends Activity {
 	private TextView resX;
 	private EditText resY;
 	private CheckBox dither;
+	private boolean switchXY;
 	private static final String PHOTO_RES_Y = "photoResY";
 	private static final String PHOTO_DITHER = "photoDither";
 	static final short COLORS[][] = {
@@ -120,7 +121,7 @@ public class SendToMCPE extends Activity {
 		if (w <= 0)
 			w = 1;
 		
-		boolean d = dither.isChecked();
+		final boolean d = dither.isChecked();
 		SharedPreferences.Editor ed = options.edit();
 		ed.putInt(PHOTO_RES_Y, h);
 		ed.putBoolean(PHOTO_DITHER, d);
@@ -128,29 +129,30 @@ public class SendToMCPE extends Activity {
 
 		Matrix m = new Matrix();
 
-		m.postScale(w/(float)inWidth, h/(float)inHeight);
-
-		if (INVALID_ROTATION != orientation) {
+		if (INVALID_ROTATION != orientation && orientation != 0) {
 			m.postRotate(orientation);
 		}
 
-		final Bitmap bmp = Bitmap.createBitmap(inBmp, 0, 0, inWidth, inHeight, m, true);
+		m.postScale(w/(float)inWidth, h/(float)inHeight);
+
+		final Bitmap bmp = Bitmap.createBitmap(inBmp, 0, 0, inBmp.getWidth(), inBmp.getHeight(), m, true);
 		new Thread(new Runnable(){
 			@Override
 			public void run() {
 				try {
-					sendToMinecraft(bmp, true);
+					sendToMinecraft(bmp, d);
 				} catch (Exception e) {
 					Log.e("rjm", ""+e);
 					safeToast("Error: RaspberryJamMod not running?");
 				} finally {
 					bmp.recycle();
+					inBmp.recycle();
 				}
 			}}).start();
 		finish();
     }
-
-    	/** Called when the activity is first created. */
+    
+    /** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -208,8 +210,9 @@ public class SendToMCPE extends Activity {
 			return;
 		}
 
-		inHeight = inBmp.getHeight();
-		inWidth = inBmp.getWidth();
+		switchXY = orientation != INVALID_ROTATION && ((orientation % 90) == 0);
+		inHeight = switchXY ? inBmp.getWidth() : inBmp.getHeight();
+		inWidth = switchXY ? inBmp.getHeight() : inBmp.getWidth();
 		
 		if (inHeight == 0 || inWidth == 0) {
 			Toast.makeText(this, "Invalid image size", Toast.LENGTH_LONG);

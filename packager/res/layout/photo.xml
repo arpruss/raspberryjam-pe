@@ -56,6 +56,12 @@
     android:text="Dither"
     />
 
+<TextView
+    android:textSize="16sp"
+    android:text="Before sending, please ensure Minecraft is running via BlockLauncher with RaspberryJamMod."
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" />
+
 <Button
    	android:textSize="20sp"
    	android:text="Send to MCPE"
