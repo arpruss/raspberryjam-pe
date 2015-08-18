@@ -33,6 +33,7 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -52,8 +53,13 @@ public class SendToMCPE extends Activity {
 	private EditText resY;
 	private CheckBox dither;
 	private boolean switchXY;
+	private TextView info;
+	private CheckBox external;
+	private EditText host;
 	private static final String PHOTO_RES_Y = "photoResY";
 	private static final String PHOTO_DITHER = "photoDither";
+	private static final String PHOTO_IP = "photoHost";
+	private static final String PHOTO_EXTERNAL = "photoExternal";
 	static final short COLORS[][] = {
 		{35,0, 222,222,222},
 		{35,1, 219,125,63},
@@ -119,10 +125,18 @@ public class SendToMCPE extends Activity {
 		if (w <= 0)
 			w = 1;
 		
+		final String ip = external.isChecked() ? host.getText().toString() : "127.0.0.1";
 		final boolean d = dither.isChecked();
 		SharedPreferences.Editor ed = options.edit();
 		ed.putInt(PHOTO_RES_Y, h);
 		ed.putBoolean(PHOTO_DITHER, d);
+		if (external.isChecked()) {
+			ed.putBoolean(PHOTO_EXTERNAL, true);
+			ed.putString(PHOTO_IP, ip);
+		}
+		else {
+			ed.putBoolean(PHOTO_EXTERNAL, false);
+		}
 		ed.commit();
 
 		Matrix m = new Matrix();
@@ -140,7 +154,7 @@ public class SendToMCPE extends Activity {
 			@Override
 			public void run() {
 				try {
-					sendToMinecraft(bmp, d, width, height);
+					sendToMinecraft(ip, 4711, bmp, d, width, height);
 				} catch (Exception e) {
 					Log.e("rjm", ""+e);
 					safeToast("Error: RaspberryJamMod not running?");
@@ -262,6 +276,34 @@ public class SendToMCPE extends Activity {
 		boolean d = options.getBoolean(PHOTO_DITHER, false);
 		dither = (CheckBox)findViewById(R.id.dither);
 		dither.setChecked(d);		
+		info = (TextView)findViewById(R.id.info);
+		external = (CheckBox)findViewById(R.id.external);
+		host = (EditText)findViewById(R.id.host);
+		boolean ext = options.getBoolean(PHOTO_EXTERNAL, false);
+		external.setChecked(ext);
+		updateExternal(ext);
+		if (ext) {
+			host.setText(options.getString(PHOTO_IP, "127.0.0.1"));
+			host.setSelection(host.getText().length());
+		}
+		external.setOnCheckedChangeListener(new CheckBox.OnCheckedChangeListener() {
+			
+			@Override
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+				updateExternal(isChecked);
+			}
+		});
+	}
+
+	private void updateExternal(boolean ext) {
+		if (ext) {
+			info.setText("Enter IP address of a device running Minecraft with Raspberry Jam Mod, or of your server with Raspberry Juice, or of a Raspberry PI running Minecraft."); 
+			host.setVisibility(View.VISIBLE);
+		}
+		else {
+			info.setText("Make sure that Raspberry Jam Mod is installed and a Minecraft world has been started via BlockLauncher.");
+			host.setVisibility(View.GONE);
+		}
 	}
 
 	int[] getTilePos(PrintWriter out, BufferedReader reader) throws Exception {
@@ -292,7 +334,7 @@ public class SendToMCPE extends Activity {
 	}
 
 	// Floyd-Steinberg
-	void sendToMinecraft(Bitmap bmp, Boolean dither, int w, int h) throws Exception {
+	void sendToMinecraft(String address, int port, Bitmap bmp, Boolean dither, int w, int h) throws Exception {
 		Log.v("rjm", "sendToMinecraft");
 		short[][][] outPixel = new short[w][h][2]; 
 		
@@ -320,7 +362,7 @@ public class SendToMCPE extends Activity {
 		}
 
 		safeToast("Sending to Minecraft");
-		Socket s = new Socket("127.0.0.1", 4711);
+		Socket s = new Socket(address, port);
 		try {
 			PrintWriter out = new PrintWriter(s.getOutputStream(), true);
 			BufferedReader reader = new BufferedReader(new InputStreamReader(s.getInputStream()));

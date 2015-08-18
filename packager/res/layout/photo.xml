@@ -56,15 +56,34 @@
     android:text="Dither"
     />
 
-<TextView
+<CheckBox 
+    android:id="@+id/external"
     android:textSize="16sp"
-    android:text="Before sending, please ensure Minecraft is running via BlockLauncher with RaspberryJamMod."
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content" />
+    android:text="Connect to Minecraft on external device (advanced)" 
+   	android:layout_width="wrap_content"
+   	android:layout_height="wrap_content" />
+
+<TextView
+    android:id="@+id/info"
+    android:textSize="16sp"
+   	android:layout_width="wrap_content"
+   	android:layout_height="wrap_content" />
+
+<EditText
+    android:id="@+id/host"
+    android:imeOptions="flagNoExtractUi"
+    android:lines="1"
+    android:text="localhost"
+    android:textSize="16sp"
+	android:layout_width="match_parent"
+	android:focusableInTouchMode="true"
+	android:focusable="true"
+	android:visibility="gone"
+	android:layout_height="wrap_content" />
 
 <Button
    	android:textSize="20sp"
-   	android:text="Send to MCPE"
+   	android:text="Send to Minecraft"
    	android:layout_width="wrap_content"
    	android:layout_height="wrap_content" 
    	android:onClick="onSend"/>
