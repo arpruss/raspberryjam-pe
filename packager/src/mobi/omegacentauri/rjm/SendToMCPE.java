@@ -134,11 +134,13 @@ public class SendToMCPE extends Activity {
 		m.postScale(w/(float)inWidth, h/(float)inHeight);
 
 		final Bitmap bmp = Bitmap.createBitmap(inBmp, 0, 0, inBmp.getWidth(), inBmp.getHeight(), m, true);
+		final int width = Math.min(bmp.getWidth(), w);
+		final int height = Math.min(bmp.getHeight(), h);
 		new Thread(new Runnable(){
 			@Override
 			public void run() {
 				try {
-					sendToMinecraft(bmp, d);
+					sendToMinecraft(bmp, d, width, height);
 				} catch (Exception e) {
 					Log.e("rjm", ""+e);
 					safeToast("Error: RaspberryJamMod not running?");
@@ -208,9 +210,10 @@ public class SendToMCPE extends Activity {
 			return;
 		}
 
-		switchXY = orientation != INVALID_ROTATION && ((orientation % 90) == 0);
+		switchXY = orientation != INVALID_ROTATION && ((orientation % 180) != 0);
 		inHeight = switchXY ? inBmp.getWidth() : inBmp.getHeight();
 		inWidth = switchXY ? inBmp.getHeight() : inBmp.getWidth();
+		Log.v("rjm", "switchXY "+switchXY+" dim "+inWidth+" x "+inHeight);
 		
 		if (inHeight == 0 || inWidth == 0) {
 			Toast.makeText(this, "Invalid image size", Toast.LENGTH_LONG);
@@ -289,10 +292,8 @@ public class SendToMCPE extends Activity {
 	}
 
 	// Floyd-Steinberg
-	void sendToMinecraft(Bitmap bmp, Boolean dither) throws Exception {
+	void sendToMinecraft(Bitmap bmp, Boolean dither, int w, int h) throws Exception {
 		Log.v("rjm", "sendToMinecraft");
-		int w = bmp.getWidth();
-		int h = bmp.getHeight();
 		short[][][] outPixel = new short[w][h][2]; 
 		
 		if (dither) {
