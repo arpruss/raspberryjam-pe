@@ -135,6 +135,14 @@ public class MainActivity extends Activity {
     	}
     }
     
+    public static boolean havePackage(Context c, String name) {
+		try {
+			return null != c.getPackageManager().getPackageInfo(name, 0);
+		} catch (NameNotFoundException e) {
+			return false;
+		}
+    }
+    
     public void showInstructions() {
     	TextView tv = (TextView)findViewById(R.id.instructions);
     	tv.setMovementMethod(LinkMovementMethod.getInstance());
