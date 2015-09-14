@@ -1,66 +1,31 @@
 package mobi.omegacentauri.rjm;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.io.Reader;
 import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.AlertDialog;
-import android.content.ComponentName;
-import android.content.ContentResolver;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.ComponentInfo;
-import android.content.pm.PackageManager.NameNotFoundException;
-import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
-import android.graphics.Matrix;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.provider.MediaStore;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.util.Log;
-import android.view.KeyEvent;
-import android.view.View;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
-import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
 
 public class RenderSchematic extends Activity {
 	private static boolean DEBUG = true;
-	public ContentResolver cr;
-	static final int INVALID_ROTATION = -360000;
-	int fuzz = 0;
 	private SharedPreferences options;
-	private int orientation;
-	private int inHeight;
-	private int inWidth;
-	private Bitmap inBmp;
-	private double aspect;
-	private TextView resX;
-	private EditText resY;
-	private CheckBox dither;
-	private boolean switchXY;
+
+	static public void log(String s) {
+		Log.v("rjm", s);
+	}
+	
 	public void safeToast(final String msg) {
 		runOnUiThread(new Runnable() {
 
@@ -70,14 +35,24 @@ public class RenderSchematic extends Activity {
 			}});
 	}
 
+	public void safeFinish() {
+		runOnUiThread(new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					finish();
+				}
+				catch(Exception e) {}
+			}});
+	}
+
     
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
         options = PreferenceManager.getDefaultSharedPreferences(this);
-        setContentView(R.layout.photo);
 
-		cr = getContentResolver();
 		Intent i = getIntent();
 		
 		if (! i.getAction().equals(Intent.ACTION_VIEW)) 
@@ -90,13 +65,8 @@ public class RenderSchematic extends Activity {
 		new Thread(new Runnable(){
 			@Override
 			public void run() {
-				try {
-					sendToMinecraft("127.0.0.1", 4711, uri);
-				} catch (Exception e) {
-					Log.e("rjm", ""+e);
-					safeToast("Error: RaspberryJamMod not running?");
-				} finally {
-				}
+				sendToMinecraft("127.0.0.1", 4711, uri);
+				safeFinish();
 			}}).start();
 	}
 
@@ -112,7 +82,6 @@ public class RenderSchematic extends Activity {
 		Log.v("rjm", "getTilePos");
 		out.println("player.getTile()");
 		String pos = reader.readLine();
-		Log.v("rjm", "got");
 		if (pos == null) {
 			throw new IOException("Cannot get tile position");
 		}
@@ -147,23 +116,34 @@ public class RenderSchematic extends Activity {
 		byte[] blocks = null;
 		byte[] data = null;
 		while ((tag = NBTTag.readNBTTag(schematic)) != null && tag.id != NBTTag.TAG_END) {
-			if (tag.id == NBTTag.TAG_SHORT && tag.label.equals("Width"))
+			if (tag.id == NBTTag.TAG_SHORT && tag.label.equals("Width")) {
 				sizeX = NBTTag.readShort(schematic);
-			else if (tag.id == NBTTag.TAG_SHORT && tag.label.equals("Height"))
+				log("Width "+sizeX);
+			}
+			else if (tag.id == NBTTag.TAG_SHORT && tag.label.equals("Height")) {
 				sizeY = NBTTag.readShort(schematic);
-			else if (tag.id == NBTTag.TAG_SHORT && tag.label.equals("Length"))
+				log("Height "+sizeY);
+			}
+			else if (tag.id == NBTTag.TAG_SHORT && tag.label.equals("Length")) {
 				sizeZ = NBTTag.readShort(schematic);
+				log("Length "+sizeZ);
+			}
 			else if (tag.id == NBTTag.TAG_BYTE_ARRAY && tag.label.equals("Blocks")) {
 				int len = NBTTag.readInt(schematic);
+				log("length "+len);
 				blocks = new byte[len];
-				if (schematic.read(blocks) != len) {
+				int r = NBTTag.readFully(schematic,blocks);
+				log("read "+r);
+				if (r != len) {
 					throw new IOException("Undersized file");
 				}
 			}
 			else if (tag.id == NBTTag.TAG_BYTE_ARRAY && tag.label.equals("Data")) {
 				int len = NBTTag.readInt(schematic);
+				log("length "+len);
 				data = new byte[len];
-				if (schematic.read(data) != len) {
+				int r = NBTTag.readFully(schematic,data);
+				if (r != len) {
 					throw new IOException("Undersized file");
 				}
 			}
@@ -176,15 +156,18 @@ public class RenderSchematic extends Activity {
 
 		int[] pos = getTilePos(mcOut, mcIn);
 		
-		int x0 = pos[0] + sizeX / 2;
+		int x0 = pos[0] - sizeX / 2;
 		int y0 = pos[1];
-		int z0 = pos[2] + sizeZ / 2;
+		int z0 = pos[2] - sizeZ / 2;
+		safeToast("Sending data to RaspberryJamMod...");
 		for (int y = 0 ; y < sizeY ; y++) {
-			mcOut.println("player.setTile("+x0+","+(y+y0)+","+(z0)+")");
+			mcOut.println("player.setTile("+pos[0]+","+(y+pos[1])+","+(pos[2])+")");
 			for (int x = 0 ; x < sizeX ; x++)
 				for (int z = 0 ; z < sizeZ ; z++) {
 					int offset = (y * sizeZ + z) * sizeX + x;
-					mcOut.println("world.setBlock("+(x0+x)+","+(y0+y)+","+(z0+z)+","+(blocks[offset]&0xFF)+","+(data[offset]&0xFF)+")");
+					if (blocks[offset] != 0) {
+						mcOut.println("world.setBlock("+(x0+x)+","+(y0+y)+","+(z0+z)+","+(blocks[offset]&0xFF)+","+(data[offset]&0xFF)+")");
+					}
 				}
 		}
 	}
@@ -205,8 +188,9 @@ public class RenderSchematic extends Activity {
 			safeToast("Schematic sent!");
 		}
 		catch(Exception e) {
-			safeToast("Error sending data. Maybe Blocklauncher and RasberryJamMod aren't running?");
-		}
+			Log.v("rjm", ""+e);
+			safeToast("Error sending data. Maybe Blocklauncher and RasberryJamMod aren't running? Error message "+e);
+		}		
 		
 		if (schematic != null) {
 			try { schematic.close(); } catch(Exception e) {}
@@ -251,6 +235,18 @@ public class RenderSchematic extends Activity {
 					throw new IOException("Undersized file");
 		}
 		
+		public static int readFully(InputStream in, byte[] array) throws IOException{
+			int offset = 0;
+			int r;
+			try {
+				while (offset < array.length && 0 <= (r = in.read(array, offset, array.length-offset))) {
+					offset += r;
+				}
+			} catch (IOException e) {
+			}
+			return offset;
+		}
+		
 		public void skip(InputStream data) throws IOException {
 			switch (id) {
 			case TAG_END:
@@ -268,6 +264,9 @@ public class RenderSchematic extends Activity {
 			case TAG_LONG:
 			case TAG_DOUBLE:
 				skipBytes(data, 8);
+				break;
+			case TAG_BYTE_ARRAY:
+				skipBytes(data, readInt(data));
 				break;
 			case TAG_STRING: {
 				short len = readShort(data);
@@ -300,7 +299,6 @@ public class RenderSchematic extends Activity {
 		}
 
 		static public NBTTag readNBTTag(InputStream data) {
-
 			int id = -1;
 			try {
 				id = data.read();
@@ -311,13 +309,14 @@ public class RenderSchematic extends Activity {
 				return null;
 			else if (id == TAG_END) 
 				return new NBTTag(TAG_END,"");
-
+			
 			try {
 				int len = readShort(data);
 				byte[] labelBytes = new byte[len];
-				if (data.read(labelBytes) < len)
+				if (readFully(data,labelBytes) < len)
 					return null;
 				String label = new String(labelBytes, "UTF-8");
+				log("tag "+id+" "+label);
 				return new NBTTag(id, label);
 			}
 			catch (IOException e) {
@@ -327,14 +326,14 @@ public class RenderSchematic extends Activity {
 		
 		static short readShort(InputStream data) throws IOException {
 			byte[] v = new byte[2];
-			if (data.read(v) < 2)
+			if (readFully(data,v) < 2)
 				throw new IOException("End of file");
 			return (short) (((v[0] & 0xFF) << 8) | (v[1] & 0xFF));
 		}
 
 		static int readInt(InputStream data) throws IOException {
 			byte[] v = new byte[4];
-			if (data.read(v) < 4)
+			if (readFully(data,v) < 4)
 				throw new IOException("End of file");
 			return (int) (((v[0] & 0xFF) << 24) | ((v[1] & 0xFF) << 16) | ((v[2] & 0xFF) << 8)  | (v[3] & 0xFF));
 		}
