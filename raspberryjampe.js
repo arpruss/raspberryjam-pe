@@ -519,6 +519,12 @@ function handleCommand(cmd) {
    else if (m == "world.getPlayerId" || m == "world.getPlayerIds") {
        writer.println(""+playerId);
    }
+//   else if (m == "world.setLevel") {
+//       ModPE.selectLevel(args[0]);
+//   }
+//   else if (m == "world.getLevel") {
+//       writer.println(""+getLevel());
+//   }
    else if (m == "entity.setPos" || m == "entity.setTile") {
        var id = parseInt(args[0]);
        if(id != -1)

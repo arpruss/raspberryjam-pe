@@ -25,7 +25,20 @@
                 <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
-    </application>
+        <activity
+            android:name="mobi.omegacentauri.rjm.RenderSchematic"
+            android:label="Schematic to Minecraft" >
+            <intent-filter android:label="Schematic to Minecraft" >
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.schematic"/>
+                <data android:host="*"/>
+                <data android:scheme="file"/>
+            </intent-filter>
+        </activity>
+        </application>
 
     <uses-sdk
         android:minSdkVersion="9"
