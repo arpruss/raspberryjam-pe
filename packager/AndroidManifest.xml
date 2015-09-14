@@ -18,6 +18,7 @@
         </activity>
         <activity
             android:name="mobi.omegacentauri.rjm.SendToMCPE"
+            android:noHistory="true"
             android:label="Photo to Minecraft" >
             <intent-filter android:label="Photo to Minecraft" >
                 <action android:name="android.intent.action.SEND" />
@@ -27,6 +28,7 @@
         </activity>
         <activity
             android:name="mobi.omegacentauri.rjm.RenderSchematic"
+            android:noHistory="true"
             android:label="Schematic to Minecraft" >
             <intent-filter android:label="Schematic to Minecraft" >
                 <action android:name="android.intent.action.VIEW" />

@@ -12,6 +12,8 @@ import java.util.zip.GZIPInputStream;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
@@ -44,6 +46,37 @@ public class RenderSchematic extends Activity {
 					finish();
 				}
 				catch(Exception e) {}
+			}});
+	}
+
+	public void safeSwitch() {
+		runOnUiThread(new Runnable() {
+
+			@Override
+			public void run() {
+				Intent i = null;
+				PackageManager pm = getPackageManager();
+				
+				try {
+					if (null != pm.getPackageInfo("net.zhuoweizhang.mcpelauncher.pro", 0)) {
+						i = pm.getLaunchIntentForPackage("net.zhuoweizhang.mcpelauncher.pro");
+					}
+				} catch (NameNotFoundException e) {
+				}
+				try {
+					if (null != pm.getPackageInfo("net.zhuoweizhang.mcpelauncher", 0)) {
+						i = pm.getLaunchIntentForPackage("net.zhuoweizhang.mcpelauncher.pro");
+					}
+				} catch (NameNotFoundException e) {
+				}
+				if (i == null) {
+					finish();
+				}
+				else {
+					i.addCategory(Intent.CATEGORY_LAUNCHER);
+					i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+					startActivity(i);
+				}
 			}});
 	}
 
@@ -132,20 +165,13 @@ public class RenderSchematic extends Activity {
 				int len = NBTTag.readInt(schematic);
 				log("length "+len);
 				blocks = new byte[len];
-				int r = NBTTag.readFully(schematic,blocks);
-				log("read "+r);
-				if (r != len) {
-					throw new IOException("Undersized file");
-				}
+				NBTTag.readFully(schematic,blocks);
 			}
 			else if (tag.id == NBTTag.TAG_BYTE_ARRAY && tag.label.equals("Data")) {
 				int len = NBTTag.readInt(schematic);
 				log("length "+len);
 				data = new byte[len];
-				int r = NBTTag.readFully(schematic,data);
-				if (r != len) {
-					throw new IOException("Undersized file");
-				}
+				NBTTag.readFully(schematic,data);
 			}
 			else 
 				tag.skip(schematic);
@@ -160,7 +186,8 @@ public class RenderSchematic extends Activity {
 		int y0 = pos[1];
 		int z0 = pos[2] - sizeZ / 2;
 		safeToast("Sending data to RaspberryJamMod...");
-		for (int y = 0 ; y < sizeY ; y++) {
+		safeSwitch();
+		for (int y = 0 ; y < sizeY && y0 + y < 128 ; y++) {
 			mcOut.println("player.setTile("+pos[0]+","+(y+pos[1])+","+(pos[2])+")");
 			for (int x = 0 ; x < sizeX ; x++)
 				for (int z = 0 ; z < sizeZ ; z++) {
@@ -235,16 +262,14 @@ public class RenderSchematic extends Activity {
 					throw new IOException("Undersized file");
 		}
 		
-		public static int readFully(InputStream in, byte[] array) throws IOException{
+		public static void readFully(InputStream in, byte[] array) throws IOException {
 			int offset = 0;
 			int r;
-			try {
-				while (offset < array.length && 0 <= (r = in.read(array, offset, array.length-offset))) {
-					offset += r;
-				}
-			} catch (IOException e) {
+			while (offset < array.length && 0 <= (r = in.read(array, offset, array.length-offset))) {
+				offset += r;
 			}
-			return offset;
+			if (offset < array.length) 
+				throw new IOException("Undersized file");
 		}
 		
 		public void skip(InputStream data) throws IOException {
@@ -313,8 +338,7 @@ public class RenderSchematic extends Activity {
 			try {
 				int len = readShort(data);
 				byte[] labelBytes = new byte[len];
-				if (readFully(data,labelBytes) < len)
-					return null;
+				readFully(data,labelBytes);
 				String label = new String(labelBytes, "UTF-8");
 				log("tag "+id+" "+label);
 				return new NBTTag(id, label);
@@ -326,15 +350,13 @@ public class RenderSchematic extends Activity {
 		
 		static short readShort(InputStream data) throws IOException {
 			byte[] v = new byte[2];
-			if (readFully(data,v) < 2)
-				throw new IOException("End of file");
+			readFully(data,v);
 			return (short) (((v[0] & 0xFF) << 8) | (v[1] & 0xFF));
 		}
 
 		static int readInt(InputStream data) throws IOException {
 			byte[] v = new byte[4];
-			if (readFully(data,v) < 4)
-				throw new IOException("End of file");
+			readFully(data,v);
 			return (int) (((v[0] & 0xFF) << 24) | ((v[1] & 0xFF) << 16) | ((v[2] & 0xFF) << 8)  | (v[3] & 0xFF));
 		}
 	}
