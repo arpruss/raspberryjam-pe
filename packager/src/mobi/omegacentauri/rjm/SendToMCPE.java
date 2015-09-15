@@ -108,15 +108,6 @@ public class SendToMCPE extends Activity {
 			Log.v("SendReduced", s);
 	}
 	
-	public void safeToast(final String msg) {
-		runOnUiThread(new Runnable() {
-
-			@Override
-			public void run() {
-				Toast.makeText(SendToMCPE.this, msg, Toast.LENGTH_LONG).show();
-			}});
-	}
-
     public void onSend(View v) {
     	int h = 1;
     	
@@ -161,14 +152,13 @@ public class SendToMCPE extends Activity {
 					sendToMinecraft(ip, 4711, bmp, d, width, height);
 				} catch (Exception e) {
 					Log.e("rjm", ""+e);
-					safeToast("Error: RaspberryJamMod not running?");
+					RenderSchematic.safeToast(SendToMCPE.this, "Error: RaspberryJamMod not running?");
+					RenderSchematic.safeFinish(SendToMCPE.this);
 				} finally {
 					bmp.recycle();
 					inBmp.recycle();
 				}
 			}}).start();
-
-		finish();
     }
     
 	/** Called when the activity is first created. */
@@ -366,7 +356,8 @@ public class SendToMCPE extends Activity {
 				}
 		}
 
-		safeToast("Sending to Minecraft");
+		RenderSchematic.safeToast(SendToMCPE.this, "Sending to Minecraft");
+		RenderSchematic.safeSwitch(SendToMCPE.this);
 		Socket s = new Socket(address, port);
 		try {
 			PrintWriter out = new PrintWriter(s.getOutputStream(), true);
@@ -458,7 +449,7 @@ public class SendToMCPE extends Activity {
 					for (int y = 0; y <h ; y++) 
 						sendPixelToMinecraft(out, pos[0]+x*xx+y*xy,pos[1],pos[2]+x*zx+y*zy, outPixel[x][y]);
 			}
-			safeToast("Sent!");
+			RenderSchematic.safeToast(SendToMCPE.this, "Sent!");
 		}
 		finally {
 			try {

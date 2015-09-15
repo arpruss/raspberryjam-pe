@@ -10,6 +10,7 @@ import java.net.Socket;
 import java.util.zip.GZIPInputStream;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -28,34 +29,34 @@ public class RenderSchematic extends Activity {
 		Log.v("rjm", s);
 	}
 	
-	public void safeToast(final String msg) {
-		runOnUiThread(new Runnable() {
+	public static void safeToast(final Activity context, final String msg) {
+		context.runOnUiThread(new Runnable() {
 
 			@Override
 			public void run() {
-				Toast.makeText(RenderSchematic.this, msg, Toast.LENGTH_LONG).show();
+				Toast.makeText(context, msg, Toast.LENGTH_LONG).show();
 			}});
 	}
 
-	public void safeFinish() {
-		runOnUiThread(new Runnable() {
+	public static void safeFinish(final Activity context) {
+		context.runOnUiThread(new Runnable() {
 
 			@Override
 			public void run() {
 				try {
-					finish();
+					context.finish();
 				}
 				catch(Exception e) {}
 			}});
 	}
 
-	public void safeSwitch() {
-		runOnUiThread(new Runnable() {
+	static public void safeSwitch(final Activity context) {
+		context.runOnUiThread(new Runnable() {
 
 			@Override
 			public void run() {
 				Intent i = null;
-				PackageManager pm = getPackageManager();
+				PackageManager pm = context.getPackageManager();
 				
 				try {
 					if (null != pm.getPackageInfo("net.zhuoweizhang.mcpelauncher.pro", 0)) {
@@ -63,19 +64,21 @@ public class RenderSchematic extends Activity {
 					}
 				} catch (NameNotFoundException e) {
 				}
-				try {
-					if (null != pm.getPackageInfo("net.zhuoweizhang.mcpelauncher", 0)) {
-						i = pm.getLaunchIntentForPackage("net.zhuoweizhang.mcpelauncher.pro");
+				if (i==null) {
+					try {
+						if (null != pm.getPackageInfo("net.zhuoweizhang.mcpelauncher", 0)) {
+							i = pm.getLaunchIntentForPackage("net.zhuoweizhang.mcpelauncher.pro");
+						}
+					} catch (NameNotFoundException e) {
 					}
-				} catch (NameNotFoundException e) {
 				}
 				if (i == null) {
-					finish();
+					context.finish();
 				}
 				else {
 					i.addCategory(Intent.CATEGORY_LAUNCHER);
 					i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-					startActivity(i);
+					context.startActivity(i);
 				}
 			}});
 	}
@@ -99,7 +102,7 @@ public class RenderSchematic extends Activity {
 			@Override
 			public void run() {
 				sendToMinecraft("127.0.0.1", 4711, uri);
-				safeFinish();
+				safeFinish(RenderSchematic.this);
 			}}).start();
 	}
 
@@ -185,8 +188,8 @@ public class RenderSchematic extends Activity {
 		int x0 = pos[0] - sizeX / 2;
 		int y0 = pos[1];
 		int z0 = pos[2] - sizeZ / 2;
-		safeToast("Sending data to RaspberryJamMod...");
-		safeSwitch();
+		safeToast(RenderSchematic.this, "Sending data to RaspberryJamMod...");
+		safeSwitch(RenderSchematic.this);
 		for (int y = 0 ; y < sizeY && y0 + y < 128 ; y++) {
 			mcOut.println("player.setTile("+pos[0]+","+(y+pos[1])+","+(pos[2])+")");
 			for (int x = 0 ; x < sizeX ; x++)
@@ -212,11 +215,11 @@ public class RenderSchematic extends Activity {
 			mcOut = new PrintWriter(s.getOutputStream(), true);
 			mcIn = new BufferedReader(new InputStreamReader(s.getInputStream()));
 			sendToMinecraft(mcOut, mcIn, schematic);
-			safeToast("Schematic sent!");
+			safeToast(RenderSchematic.this, "Schematic sent!");
 		}
 		catch(Exception e) {
 			Log.v("rjm", ""+e);
-			safeToast("Error sending data. Maybe Blocklauncher and RasberryJamMod aren't running? Error message "+e);
+			safeToast(RenderSchematic.this, "Error sending data. Maybe Blocklauncher and RasberryJamMod aren't running?");
 		}		
 		
 		if (schematic != null) {
