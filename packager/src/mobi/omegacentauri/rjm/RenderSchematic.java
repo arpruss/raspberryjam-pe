@@ -78,6 +78,7 @@ public class RenderSchematic extends Activity {
 				else {
 					i.addCategory(Intent.CATEGORY_LAUNCHER);
 					i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+					log("intent "+i);
 					context.startActivity(i);
 				}
 			}});
