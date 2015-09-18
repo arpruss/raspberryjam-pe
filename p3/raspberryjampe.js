@@ -519,6 +519,12 @@ function handleCommand(cmd) {
    else if (m == "world.getPlayerId" || m == "world.getPlayerIds") {
        writer.println(""+playerId);
    }
+//   else if (m == "world.setLevel") {
+//       ModPE.selectLevel(args[0]);
+//   }
+//   else if (m == "world.getLevel") {
+//       writer.println(""+getLevel());
+//   }
    else if (m == "entity.setPos" || m == "entity.setTile") {
        var id = parseInt(args[0]);
        if(id != -1)
@@ -675,6 +681,15 @@ function handleCommand(cmd) {
    }
    else if (m == "world.removeEntity") {
        Entity.remove(parseInt(args[0]));
+   }
+   else if (m == "player.setFlying") {
+       Player.setFlying(Boolean(parseInt(args[0])));
+   }
+   else if (m == "player.isFlying()") {
+       if (Player.isFlying())
+           writer.println("1");
+       else
+           writer.println("0");
    }
    else {
        android.util.Log.e("droidjam", "Unknown command");

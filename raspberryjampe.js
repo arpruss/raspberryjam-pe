@@ -682,6 +682,15 @@ function handleCommand(cmd) {
    else if (m == "world.removeEntity") {
        Entity.remove(parseInt(args[0]));
    }
+   else if (m == "player.setFlying") {
+       Player.setFlying(Boolean(parseInt(args[0])));
+   }
+   else if (m == "player.isFlying()") {
+       if (Player.isFlying())
+           writer.println("1");
+       else
+           writer.println("0");
+   }
    else {
        android.util.Log.e("droidjam", "Unknown command");
        err("Unknown command");
