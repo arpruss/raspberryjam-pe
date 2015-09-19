@@ -682,10 +682,10 @@ function handleCommand(cmd) {
    else if (m == "world.removeEntity") {
        Entity.remove(parseInt(args[0]));
    }
-   else if (m == "player.setFlying") {
+   else if (m == "player.setFlying") {  // doesn't work yet
        Player.setFlying(Boolean(parseInt(args[0])));
    }
-   else if (m == "player.isFlying()") {
+   else if (m == "player.isFlying") {
        if (Player.isFlying())
            writer.println("1");
        else

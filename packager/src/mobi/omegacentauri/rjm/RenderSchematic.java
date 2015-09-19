@@ -190,6 +190,7 @@ public class RenderSchematic extends Activity {
 		int y0 = pos[1];
 		int z0 = pos[2] - sizeZ / 2;
 		safeToast(RenderSchematic.this, "Sending data to RaspberryJamMod...");
+	//	mcOut.println("player.setFlying(1)");
 		safeSwitch(RenderSchematic.this);
 		for (int y = 0 ; y < sizeY && y0 + y < 128 ; y++) {
 			mcOut.println("player.setTile("+pos[0]+","+(y+pos[1])+","+(pos[2])+")");

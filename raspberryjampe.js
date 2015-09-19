@@ -11,6 +11,8 @@ var EVENTS_MAX = 512;
 var PLAYER_HEIGHT = 1.61999988;
 var TOO_SMALL = 1e-9;
 
+var nightVision = -1;
+
 var serverSocket;
 var socket;
 var reader;
@@ -312,6 +314,23 @@ function procCmd(cmdLine) {
         entitySetPosition(playerId,posDesc(cmds[1],playerX()),
             posDesc(cmds[2],playerY()),
             posDesc(cmds[3],playerZ()));
+    }
+    else if (cmds[0] == "nv" || cmds[0] == "nightvision") {
+        var setting = (nightVision < 0);
+        if (cmds.length >= 2) {
+            if (cmds[1] == "on")
+                setting = true;
+            else if (cmds[1] == "off")
+                setting = false; 
+        }
+        if (setting) {
+            nightVision = 1000;
+            Entity.addEffect(playerId,MobEffect.nightVision,2000,0,false,false);
+        }
+        else {
+            nightVision = -1;
+            Entity.removeEffect(playerId,MobEffect.nightVision);
+        }
     }
     else if ((cmds[0] == "py" || cmds[0] == "python") && cmds.length >= 2) {
         var context = com.mojang.minecraftpe.MainActivity.currentMainActivity.get();
@@ -682,10 +701,10 @@ function handleCommand(cmd) {
    else if (m == "world.removeEntity") {
        Entity.remove(parseInt(args[0]));
    }
-   else if (m == "player.setFlying") {
+   else if (m == "player.setFlying") {  // doesn't work yet
        Player.setFlying(Boolean(parseInt(args[0])));
    }
-   else if (m == "player.isFlying()") {
+   else if (m == "player.isFlying") {
        if (Player.isFlying())
            writer.println("1");
        else
@@ -720,6 +739,15 @@ function modTick() {
         }
         ModPE.saveData(worldDir+".spawnY", spawnY);
         android.util.Log.v("droidjam", "adjusted spawnY = "+spawnY);
+    }
+    if (nightVision >= 0) {
+        if (nightVision == 0) {
+            nightVision = 1000;
+            Entity.addEffect(playerId,MobEffect.nightVision,2000,0,false,false);
+        }
+        else {
+            nightVision--;
+        }
     }
 //    for (i = 0 ; i < noAIs.length ; i++) {
 //        e = noAIs[i];
