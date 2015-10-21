@@ -614,6 +614,12 @@ function handleCommand(cmd) {
        else
            writer.println(""+b[0]+","+b[1]);
    }
+   else if (m == "world.getBlocksWithData") {
+	   writer.println(getBlocksWithData(args));
+   }
+   else if (m == "world.getBlocks") {
+	   writer.println(getBlocks(args));
+   }
    else if (m == "chat.post") {
        if (argList.charAt(0) == '/')
            clientMessage(":"+argList); // protect against slash command injection
@@ -791,6 +797,66 @@ function setBlocks(args) {
            }
        }
    }
+}
+
+function getBlocksWithData(args) {
+	var x0 = Math.floor(args[0]) + spawnX;
+	var y0 = Math.floor(args[1]) + spawnY;
+	var z0 = Math.floor(args[2]) + spawnZ;
+	var x1 = Math.floor(args[3]) + spawnX;
+	var y1 = Math.floor(args[4]) + spawnY;
+	var z1 = Math.floor(args[5]) + spawnZ;
+	var startx = x0 < x1 ? x0 : x1;
+	var starty = y0 < y1 ? y0 : y1;
+	var startz = z0 < z1 ? z0 : z1;
+	var endx = x0 > x1 ? x0 : x1;
+	var endy = y0 > y1 ? y0 : y1;
+	var endz = z0 > z1 ? z0 : z1;   
+	var data = "";   
+	for (var z = startz ; z <= endz ; z++) {
+		for (var y = starty ; y <= endy ; y++) {
+           for (var x = startx ; x <= endx ; x++) {
+			var b = getBlockFromQueue(x,y,z);
+			if (data != "")
+				data = data + "|";
+			if (b === undefined)
+				data = data + Level.getTile(x,y,z)+","+Level.getData(x,y,z);
+			else
+				data = data + b[0]+","+b[1];
+			}
+		}
+	}
+	return data;
+}
+
+function getBlocks(args) {
+	var x0 = Math.floor(args[0]) + spawnX;
+	var y0 = Math.floor(args[1]) + spawnY;
+	var z0 = Math.floor(args[2]) + spawnZ;
+	var x1 = Math.floor(args[3]) + spawnX;
+	var y1 = Math.floor(args[4]) + spawnY;
+	var z1 = Math.floor(args[5]) + spawnZ;
+	var startx = x0 < x1 ? x0 : x1;
+	var starty = y0 < y1 ? y0 : y1;
+	var startz = z0 < z1 ? z0 : z1;
+	var endx = x0 > x1 ? x0 : x1;
+	var endy = y0 > y1 ? y0 : y1;
+	var endz = z0 > z1 ? z0 : z1;   
+	var data = "";
+	for (var z = startz ; z <= endz ; z++) {
+		for (var y = starty ; y <= endy ; y++) {
+           for (var x = startx ; x <= endx ; x++) {
+			var b = getBlockFromQueue(x,y,z);
+			if (data != "")
+				data = data + "|";
+			if (b === undefined)
+				data = data + Level.getTile(x,y,z);
+			else
+				data = data + b[0];
+			}
+		}
+	}
+	return data;
 }
 
 function err(msg) {
