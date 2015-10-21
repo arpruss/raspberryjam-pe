@@ -812,13 +812,13 @@ function getBlocksWithData(args) {
 	var endx = x0 > x1 ? x0 : x1;
 	var endy = y0 > y1 ? y0 : y1;
 	var endz = z0 > z1 ? z0 : z1;   
-	var data = "";   
-	for (var z = startz ; z <= endz ; z++) {
-		for (var y = starty ; y <= endy ; y++) {
+	var data = "";
+	for (var y = starty ; y <= endy ; y++) {
            for (var x = startx ; x <= endx ; x++) {
+	for (var z = startz ; z <= endz ; z++) {
 			var b = getBlockFromQueue(x,y,z);
 			if (data != "")
-				data = data + "|";
+				data = data + ",";
 			if (b === undefined)
 				data = data + Level.getTile(x,y,z)+","+Level.getData(x,y,z);
 			else
@@ -841,11 +841,11 @@ function getBlocks(args) {
 	var startz = z0 < z1 ? z0 : z1;
 	var endx = x0 > x1 ? x0 : x1;
 	var endy = y0 > y1 ? y0 : y1;
-	var endz = z0 > z1 ? z0 : z1;   
+	var endz = z0 > z1 ? z0 : z1;
 	var data = "";
-	for (var z = startz ; z <= endz ; z++) {
-		for (var y = starty ; y <= endy ; y++) {
+	for (var y = starty ; y <= endy ; y++) {
            for (var x = startx ; x <= endx ; x++) {
+	for (var z = startz ; z <= endz ; z++) {
 			var b = getBlockFromQueue(x,y,z);
 			if (data != "")
 				data = data + "|";
