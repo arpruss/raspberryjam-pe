@@ -10,12 +10,12 @@ Status
 
 ### Done ###
 
-* **camera** camera.setFollow, camera.setNormal, camera.getEntityId,
-* **chat** chat.post, 
-* **entity** entity.setPos, entity.setTile, entity.getPos, entity.getTile, entity.getPitch, entity.getRotation,
-* **events** events.block.hits, events.clear, events.setting, events.chat.posts, 
-* **player** player.setTile, player.setPos, player.setRotation, player.setPitch, player.getPitch, player.getRotation, player.setDirection, player.getDirection,
-* **world** world.setBlock, world.setBlocks, world.getBlock, world.getBlockWithData, world.getPlayerIds, world.spawnEntity, world.removeEntity, world.getHeight, world.setting
+* **camera*** camera.setFollow, camera.setNormal, camera.getEntityId,
+* **chat*** chat.post, 
+* **entity*** entity.setPos, entity.setTile, entity.getPos, entity.getTile, entity.getPitch, entity.getRotation,
+* **events*** events.block.hits, events.clear, events.setting, events.chat.posts, 
+* **player*** player.setTile, player.setPos, player.setRotation, player.setPitch, player.getPitch, player.getRotation, player.setDirection, player.getDirection,
+* **world*** world.setBlock, world.setBlocks, world.getBlock, world.getBlockWithData, world.getPlayerIds, world.spawnEntity, world.removeEntity, world.getHeight, world.setting
 
 ### Divergences and to dos ###
 
