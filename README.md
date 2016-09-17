@@ -1,7 +1,7 @@
 Raspberryjam PE (Pocket Edition)
 ================================
 
-This software provides the [Python API](http://www.stuffaboutcode.com/p/minecraft-api-reference.html) from [Minecraft: Pi Edition](http://pi.minecraft.net/) for [Minecraft: Pocket Edition on Android](https://play.google.com/store/apps/details?id=com.mojang.minecraftpe). You can [download this software (Raspberry Jam Mod)](https://play.google.com/store/apps/details?id=mobi.omegacentauri.rjm) for free from the Google Play Store.
+This software provides the [Python API](http://www.stuffaboutcode.com/p/minecraft-api-reference.html) from [Minecraft: Pi Edition](http://pi.minecraft.net/) for [Minecraft: Pocket Edition](https://play.google.com/store/apps/details?id=com.mojang.minecraftpe) on Android. You can [download this software (Raspberry Jam Mod)](https://play.google.com/store/apps/details?id=mobi.omegacentauri.rjm) for free from the Google Play Store.
 
 To learn more, check out the [instructable](http://www.instructables.com/id/Python-Coding-for-Android-Minecraft-PE/) by the author.
 
