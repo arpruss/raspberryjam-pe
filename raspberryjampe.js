@@ -310,7 +310,7 @@ function procCmd(cmdLine) {
             clientMessage("Day time "+Level.getTime());
         }
     }
-    else if (cmds[0] == "tp" && cmds.length >= 4) {
+    else if (cmds[0] == "xtp" && cmds.length >= 4) {
         entitySetPosition(playerId,posDesc(cmds[1],playerX()),
             posDesc(cmds[2],playerY()),
             posDesc(cmds[3],playerZ()));
