@@ -4,7 +4,7 @@ mkdir p2/scripts
 cp raspberryjampe.js p2/
 cp -r `grep -l Pruss ../mc/mcpipy/*.py` ../mc/mcpipy/mcpi p2/scripts
 cp -r ../mc/mcpipy/{models,vehicles} p2/scripts
-cp ../mc/mcpipy/nasaearth.jpg p2/scripts
+cp ../mc/mcpipy/{nasaearth.jpg,pysanka.jpg} p2/scripts
 rm p2/scripts/neurosky.py p2/scripts/writebook.py p2/scripts/danielbates_setblockdemo.py
 sed --in-place='' 's/^minecraftType.*/minecraftType = MINECRAFT_POCKET_EDITION/' p2/scripts/mcpi/settings.py
 echo 'address = "127.0.0.1"' > p2/scripts/server.py
