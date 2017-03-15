@@ -1,23 +1,18 @@
 #
-# Code under the MIT license by Alexander Pruss
+# Code by Alexander Pruss and under the MIT license
 #
 
-from mc import *
+from mine import *
 import drawing
 from sys import argv
 import mcpi.settings as settings
-import ast
 
-RAINBOW = (WOOL_RED,WOOL_PINK,WOOL_ORANGE,WOOL_YELLOW,WOOL_GREEN,WOOL_BLUE,WOOL_LIGHT_BLUE,WOOL_PURPLE)
+RAINBOW = (block.WOOL_RED,block.WOOL_PINK,block.WOOL_ORANGE,
+            block.WOOL_YELLOW,block.WOOL_GREEN,block.WOOL_BLUE,
+            block.WOOL_LIGHT_BLUE,block.WOOL_PURPLE)
 
 TAN30 = sqrt(3.)/3
 SQRT32 = sqrt(3./2)
-
-def parseBlock(s):
-    try:
-        return ast.literal_eval(s)
-    except:
-        return globals()[s.upper()]
 
 def distance(a,b):
     return sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2)
@@ -65,10 +60,10 @@ levels = 7
 mc.player.setPos(tetrahedronBottom(height,(pos.x,pos.y+height,pos.z))[0])
 tetrahedra = sierpinski(height,pos.x,pos.y+height,pos.z,levels)
 mc.postToChat("Drawing")
-if len(argv) >= 2 and '__' not in argv[1]:
-    specifiedBlock = parseBlock(argv[1])
-    block = lambda level : specifiedBlock
+if len(argv) >= 2:
+    specifiedBlock = Block.byName(argv[1])
+    b = lambda level : specifiedBlock
 else:
-    block = lambda level : RAINBOW[level % len(RAINBOW)]
+    b = lambda level : RAINBOW[level % len(RAINBOW)]
 for tet in tetrahedra:
-    drawTetrahedron(tet[1],tet[2],block(tet[0]))
+    drawTetrahedron(tet[1],tet[2],b(tet[0]))

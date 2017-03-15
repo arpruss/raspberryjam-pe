@@ -1,3 +1,4 @@
+from __future__ import print_function
 #The software in this file is copyright 2003,2004 Simon Tatham and copyright 2015 Alexander Pruss
 #Based on code from http://www.chiark.greenend.org.uk/~sgtatham/polyhedra/
 #
@@ -409,7 +410,7 @@ def genFacesFace(points,x0,y0,z0,scale):
             planes = list(p[2:5])
             planes.sort()
             planes = tuple(planes)
-            if not vertices.has_key(planes):
+            if planes not in vertices:
                 vertices[planes] = []
             vertices[planes].append((xb, yb, zb))
             facelist.append(planes)
@@ -647,7 +648,7 @@ def genFacesVertex(points,x0,y0,z0,size):
         for j in range(n):
             xj, yj, zj = points[j]
             if i == j: continue
-            if not (hulledges.has_key((i,j)) or hulledges.has_key((j,i))): continue
+            if not ((i,j) in hulledges or (j,i) in hulledges): continue
 
             # So we have an edge from point i to point j. We imagine we
             # are walking along that edge from i to j with the
@@ -672,7 +673,7 @@ def genFacesVertex(points,x0,y0,z0,size):
             angles = []
             for k in range(n):
                 if k == j: continue
-                if not (hulledges.has_key((k,j)) or hulledges.has_key((j,k))):
+                if not ((k,j) in hulledges or (j,k) in hulledges):
                     continue
                 xk, yk, zk = points[k]
                 xk1 = matrix[0][0] * xk + matrix[0][1] * yk + matrix[0][2] * zk
@@ -703,7 +704,7 @@ def genFacesVertex(points,x0,y0,z0,size):
 
     while len(followedges) > 0:
         # Pick an arbitrary key in followedges.
-        start = this = followedges.keys()[0]
+        start = this = list(followedges.keys())[0]
         vertices = []
         while 1:
             p = points[this[0]]
@@ -719,18 +720,18 @@ def genFacesVertex(points,x0,y0,z0,size):
 
 
 def polyhedron(d,n,faceMode,x,y,z,size,faceBlock,edgeBlock=None):
-    print "Generating points"
+    print("Generating points")
     points = makePoints(n)
     if faceMode:
-        print "Generating faces with face construction"
+        print("Generating faces with face construction")
         faces = genFacesFace(points,x,y,z,size/2)
     else:
-        print "Generating faces with vertex construction"
+        print("Generating faces with vertex construction")
         faces = genFacesVertex(points,x,y,z,size/2)
-    print "Drawing faces"
+    print("Drawing faces")
     for face in faces:
         d.face(face,faceBlock)
-    print "Drawing edges"
+    print("Drawing edges")
     if edgeBlock:
         for face in faces:
             prev = face[-1]
@@ -739,6 +740,8 @@ def polyhedron(d,n,faceMode,x,y,z,size,faceBlock,edgeBlock=None):
                 prev = vertex
 
 if __name__ == "__main__":
+    import mcpi.block as block
+    
     d = drawing.Drawing()
 
     if len(sys.argv)>1:
@@ -754,4 +757,4 @@ if __name__ == "__main__":
         size = 50
 
     pos = d.mc.player.getPos()
-    polyhedron(d,n,faceMode,pos.x, pos.y, pos.z, size,drawing.GLASS,drawing.STONE)
+    polyhedron(d,n,faceMode,pos.x, pos.y, pos.z, size, block.GLASS, block.STONE)

@@ -1,13 +1,13 @@
 #
-# Code under the MIT license by Alexander Pruss
+# Code by Alexander Pruss and under the MIT license
 #
 
 import lsystem
-from mcturtle import *
+from mineturtle import *
 t = Turtle()
 t.pendelay(0)
 t.turtle(None)
-t.penblock(BRICK_BLOCK)
+t.penblock(block.BRICK_BLOCK)
 t.gridalign()
 
 # http://mathforum.org/advanced/robertd/lsys2d.html

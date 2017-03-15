@@ -39,7 +39,7 @@ public class MainActivity extends Activity {
 	private boolean haveMinecraft;
 	private Object bl;
 
-	static final String SCRIPTS = "/com.hipipal.qpyplus"; 
+	static final String SCRIPTS = "/qpython"; 
 	static final int PYTHON2 = 0;
 //	static final int PYTHON3 = 1;
 	static final int OVERWRITE_NO = 0;
@@ -102,7 +102,7 @@ public class MainActivity extends Activity {
 			AlertDialog alertDialog = new AlertDialog.Builder(this).create();
 
 			alertDialog.setTitle("Need BlockLauncher");
-			alertDialog.setMessage("To install Raspberry Jam Mod, you need to install BlockLauncher or BlockLauncher Pro first.");
+			alertDialog.setMessage("To install Raspberry Jam Mod automatically, you should install BlockLauncher or BlockLauncher Pro first.");
 			alertDialog.setButton(DialogInterface.BUTTON_POSITIVE, 
 					"OK", 
 					new DialogInterface.OnClickListener() {
@@ -138,6 +138,22 @@ public class MainActivity extends Activity {
     public static boolean havePackage(Context c, String name) {
 		try {
 			return null != c.getPackageManager().getPackageInfo(name, 0);
+		} catch (NameNotFoundException e) {
+			return false;
+		}
+    }
+    
+    public static boolean isBLProInstalled(Context c) {
+		try {
+			return null != c.getPackageManager().getPackageInfo("net.zhuoweizhang.mcpelauncher.pro", 0);
+		} catch (NameNotFoundException e) {
+			return false;
+		}
+    }
+    
+    public static boolean isBLInstalled(Context c) {
+		try {
+			return null != c.getPackageManager().getPackageInfo("net.zhuoweizhang.mcpelauncher", 0);
 		} catch (NameNotFoundException e) {
 			return false;
 		}
@@ -195,28 +211,11 @@ public class MainActivity extends Activity {
 		}
 
 		bl = null;
-		boolean haveBLPro;
-		try {
-			haveBLPro = null != getPackageManager().getPackageInfo("net.zhuoweizhang.mcpelauncher.pro", 0);
-		} catch (NameNotFoundException e) {
-			haveBLPro = false;
-		}
 		
-		if (haveBLPro) {
+		if (isBLProInstalled(this)) 
 			bl = "BlockLauncher Pro";
-		}
-		else {
-			boolean haveBL;
-			try {
-				haveBL = null != getPackageManager().getPackageInfo("net.zhuoweizhang.mcpelauncher", 0);
-			} catch (NameNotFoundException e) {
-				haveBL = false;
-			}
-			
-			if (haveBL) {
-				bl = "BlockLaucher";
-			}
-		}
+		else if (isBLInstalled(this)) 
+			bl = "BlockLaucher";
 		
 		if (bl == null) {
 			message += "<p>3. Install <a href='"+store+"net.zhuoweizhang.mcpelauncher.pro'>BlockLauncher Pro</a> or the free "+
@@ -309,7 +308,7 @@ public class MainActivity extends Activity {
 			ZipInputStream zip = null;
 			
 			try {
-				zip = new ZipInputStream(assets.open("p" + pyVer + ".zip"));
+				zip = new ZipInputStream(assets.open("py.zip"));
 				ZipEntry entry;
 				
 				while (null != (entry = zip.getNextEntry())) {
@@ -352,7 +351,7 @@ public class MainActivity extends Activity {
 
 		@Override
 		protected void onPostExecute(Boolean success) {
-			if (success != null && success) {
+			if (success != null && success && (isBLInstalled(context) || isBLProInstalled(context))) {
 				Intent intent = new Intent("net.zhuoweizhang.mcpelauncher.action.IMPORT_SCRIPT");
 				String path = Environment.getExternalStorageDirectory().getPath()+"/"+SCRIPTS+"/"+"raspberryjampe.js";
 				intent.setDataAndType(Uri.fromFile(new File(path)), "text/plain");			

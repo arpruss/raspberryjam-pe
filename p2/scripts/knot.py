@@ -1,19 +1,19 @@
 #
-# Code under the MIT license by Alexander Pruss
+# Code by Alexander Pruss and under the MIT license
 #
 
 #
 # Draw a knot
 #
 
-from mc import *
+from mine import *
 
 mc = Minecraft()
-playerPos = mc.player.getPos()
+playerPos = mc.player.getTilePos()
 scale = 10
-x0 = int(playerPos.x)
+x0 = playerPos.x
 y0 = int(playerPos.y+5*scale)
-z0 = int(playerPos.z)
+z0 = playerPos.z
 t = 0
 done = set()
 while t < 2*pi:
@@ -22,6 +22,6 @@ while t < 2*pi:
   y = y0+5*scale+int( scale * sin(2*t) * (3 + cos(5*t)) )
   z = z0+int( scale * sin(5*t) )
   if (x,y,z) not in done:
-      mc.setBlock(x,y,z,GOLD_BLOCK)
-      done[x,y,z] = GOLD_BLOCK
+      mc.setBlock(x,y,z,block.GOLD_BLOCK)
+      done.add((x,y,z))
   t += 2*pi / 10000

@@ -1,10 +1,9 @@
 #
-# Code under the MIT license by Alexander Pruss
+# Code by Alexander Pruss and under the MIT license
 #
 
 import mcpi.minecraft as minecraft
 import mcpi.block as block
-from mcpi.block import *
 from mcpi.entity import *
 from math import *
 from numbers import Number,Integral
@@ -176,7 +175,7 @@ def get2DTriangle(a,b,c):
                 maxX[p[1]] = p[0]
                 yield(p)
             elif p[0] < minX0:
-                for x in xrange(p[0],minX0):
+                for x in range(p[0],minX0):
                     yield(x,p[1])
                 minX[p[1]] = p[0]
             else:
@@ -449,7 +448,7 @@ class Drawing:
     TO_DEGREES = 180. / pi
 
     def __init__(self,mc=None):
-        if mc:
+        if mc is not None:
              self.mc = mc
         else:
              self.mc = minecraft.Minecraft()
@@ -501,7 +500,7 @@ class Drawing:
                     x0 = p[0]+point[0]
                     y0 = p[1]+point[1]
                     z0 = p[2]+point[2]
-                    if (x0,y0,z0) not in self.done:
+                    if (x0,y0,z0) not in done:
                         self.mc.setBlock(x0,y0,z0,block)
                         done.add((x0,y0,z0))
 
@@ -509,15 +508,15 @@ if __name__ == "__main__":
     d = Drawing()
     pos = d.mc.player.getPos()
     d.face([(pos.x,pos.y,pos.z),(pos.x+20,pos.y+20,pos.z),(pos.x+20,pos.y+20,pos.z+20),
-         (pos.x,pos.y,pos.z+20)], GLASS)
+         (pos.x,pos.y,pos.z+20)], block.GLASS)
     n = 20
     for t in range(0,n):
         (x1,z1) = (100*cos(t*2*pi/n),80*sin(t*2*pi/n))
         for p in traverse(V3(pos.x,pos.y-1,pos.z),V3(pos.x+x1,pos.y-1,pos.z+z1)):
-            d.mc.setBlock(p,OBSIDIAN)
+            d.mc.setBlock(p,block.OBSIDIAN)
     n = 40
     vertices = []
     for t in range(0,n):
         (x1,z1) = (100*cos(t*2*pi/n),80*sin(t*2*pi/n))
         vertices.append((pos.x+x1,pos.y,pos.z+z1))
-    d.face(vertices, STAINED_GLASS_BLUE)
+    d.face(vertices, block.STAINED_GLASS_BLUE)

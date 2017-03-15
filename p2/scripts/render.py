@@ -1,4 +1,4 @@
-#www.stuffaboutcode.com
+﻿#www.stuffaboutcode.com
 #Raspberry Pi, Minecraft - Create 3D Model from Obj file
 # Version 2 - draws complete faces rather than wireframes and uses materials
 """
@@ -22,11 +22,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+from __future__ import print_function
 
 from zipfile import ZipFile
-from StringIO import StringIO
 import sys
-import urllib2
+try:
+    import urllib.request as urllib_request
+except:
+    import urllib2 as urllib_request
 import struct
 from collections import OrderedDict
 import mcpi.minecraft as minecraft
@@ -38,6 +41,7 @@ import time
 #import datetime, to get the time!
 import datetime
 import gzip
+import colors
 from drawing import *
 
 import math
@@ -47,80 +51,141 @@ import re
 IDENTITY44 = ((1.,0.,0.,0.),(0.,1.,0.,0.),(0.,0.,1.,0.),(0.,0.,0.,1.))
 
 def determinant44(m):
-   inv00=m[1][1]*m[2][2]*m[3][3]-m[1][1]*m[3][2]*m[2][3]-m[1][2]*m[2][1]*m[3][3]+m[1][2]*m[3][1]*m[2][3]+m[1][3]*m[2][1]*m[3][2]-m[1][3]*m[3][1]*m[2][2]
-   inv01=-m[0][1]*m[2][2]*m[3][3]+m[0][1]*m[3][2]*m[2][3]+m[0][2]*m[2][1]*m[3][3]-m[0][2]*m[3][1]*m[2][3]-m[0][3]*m[2][1]*m[3][2]+m[0][3]*m[3][1]*m[2][2]
-   inv02=m[0][1]*m[1][2]*m[3][3]-m[0][1]*m[3][2]*m[1][3]-m[0][2]*m[1][1]*m[3][3]+m[0][2]*m[3][1]*m[1][3]+m[0][3]*m[1][1]*m[3][2]-m[0][3]*m[3][1]*m[1][2]
-   inv03=-m[0][1]*m[1][2]*m[2][3]+m[0][1]*m[2][2]*m[1][3]+m[0][2]*m[1][1]*m[2][3]-m[0][2]*m[2][1]*m[1][3]-m[0][3]*m[1][1]*m[2][2]+m[0][3]*m[2][1]*m[1][2]
-   return m[0][0]*inv00 + m[1][0]*inv01 + m[2][0]*inv02 + m[3][0]*inv03
+   inv00 = m[1][1] * m[2][2] * m[3][3] - m[1][1] * m[3][2] * m[2][3] - m[1][2] * m[2][1] * m[3][3] + m[1][2] * m[3][1] * m[2][3] + m[1][3] * m[2][1] * m[3][2] - m[1][3] * m[3][1] * m[2][2]
+   inv01 = -m[0][1] * m[2][2] * m[3][3] + m[0][1] * m[3][2] * m[2][3] + m[0][2] * m[2][1] * m[3][3] - m[0][2] * m[3][1] * m[2][3] - m[0][3] * m[2][1] * m[3][2] + m[0][3] * m[3][1] * m[2][2]
+   inv02 = m[0][1] * m[1][2] * m[3][3] - m[0][1] * m[3][2] * m[1][3] - m[0][2] * m[1][1] * m[3][3] + m[0][2] * m[3][1] * m[1][3] + m[0][3] * m[1][1] * m[3][2] - m[0][3] * m[3][1] * m[1][2]
+   inv03 = -m[0][1] * m[1][2] * m[2][3] + m[0][1] * m[2][2] * m[1][3] + m[0][2] * m[1][1] * m[2][3] - m[0][2] * m[2][1] * m[1][3] - m[0][3] * m[1][1] * m[2][2] + m[0][3] * m[2][1] * m[1][2]
+   return m[0][0] * inv00 + m[1][0] * inv01 + m[2][0] * inv02 + m[3][0] * inv03
 
 def invertMatrix44(m):
    inv = [[0 for i in range(4)] for j in range(4)]
 
-   inv[0][0]=m[1][1]*m[2][2]*m[3][3]-m[1][1]*m[3][2]*m[2][3]-m[1][2]*m[2][1]*m[3][3]+m[1][2]*m[3][1]*m[2][3]+m[1][3]*m[2][1]*m[3][2]-m[1][3]*m[3][1]*m[2][2]
-   inv[0][1]=-m[0][1]*m[2][2]*m[3][3]+m[0][1]*m[3][2]*m[2][3]+m[0][2]*m[2][1]*m[3][3]-m[0][2]*m[3][1]*m[2][3]-m[0][3]*m[2][1]*m[3][2]+m[0][3]*m[3][1]*m[2][2]
-   inv[0][2]=m[0][1]*m[1][2]*m[3][3]-m[0][1]*m[3][2]*m[1][3]-m[0][2]*m[1][1]*m[3][3]+m[0][2]*m[3][1]*m[1][3]+m[0][3]*m[1][1]*m[3][2]-m[0][3]*m[3][1]*m[1][2]
-   inv[0][3]=-m[0][1]*m[1][2]*m[2][3]+m[0][1]*m[2][2]*m[1][3]+m[0][2]*m[1][1]*m[2][3]-m[0][2]*m[2][1]*m[1][3]-m[0][3]*m[1][1]*m[2][2]+m[0][3]*m[2][1]*m[1][2]
+   inv[0][0] = m[1][1] * m[2][2] * m[3][3] - m[1][1] * m[3][2] * m[2][3] - m[1][2] * m[2][1] * m[3][3] + m[1][2] * m[3][1] * m[2][3] + m[1][3] * m[2][1] * m[3][2] - m[1][3] * m[3][1] * m[2][2]
+   inv[0][1] = -m[0][1] * m[2][2] * m[3][3] + m[0][1] * m[3][2] * m[2][3] + m[0][2] * m[2][1] * m[3][3] - m[0][2] * m[3][1] * m[2][3] - m[0][3] * m[2][1] * m[3][2] + m[0][3] * m[3][1] * m[2][2]
+   inv[0][2] = m[0][1] * m[1][2] * m[3][3] - m[0][1] * m[3][2] * m[1][3] - m[0][2] * m[1][1] * m[3][3] + m[0][2] * m[3][1] * m[1][3] + m[0][3] * m[1][1] * m[3][2] - m[0][3] * m[3][1] * m[1][2]
+   inv[0][3] = -m[0][1] * m[1][2] * m[2][3] + m[0][1] * m[2][2] * m[1][3] + m[0][2] * m[1][1] * m[2][3] - m[0][2] * m[2][1] * m[1][3] - m[0][3] * m[1][1] * m[2][2] + m[0][3] * m[2][1] * m[1][2]
 
-   inv[1][0]=-m[1][0]*m[2][2]*m[3][3]+m[1][0]*m[3][2]*m[2][3]+m[1][2]*m[2][0]*m[3][3]-m[1][2]*m[3][0]*m[2][3]-m[1][3]*m[2][0]*m[3][2]+m[1][3]*m[3][0]*m[2][2]
-   inv[1][1]=m[0][0]*m[2][2]*m[3][3]-m[0][0]*m[3][2]*m[2][3]-m[0][2]*m[2][0]*m[3][3]+m[0][2]*m[3][0]*m[2][3]+m[0][3]*m[2][0]*m[3][2]-m[0][3]*m[3][0]*m[2][2]
-   inv[1][2]=-m[0][0]*m[1][2]*m[3][3]+m[0][0]*m[3][2]*m[1][3]+m[0][2]*m[1][0]*m[3][3]-m[0][2]*m[3][0]*m[1][3]-m[0][3]*m[1][0]*m[3][2]+m[0][3]*m[3][0]*m[1][2]
-   inv[1][3]=m[0][0]*m[1][2]*m[2][3]-m[0][0]*m[2][2]*m[1][3]-m[0][2]*m[1][0]*m[2][3]+m[0][2]*m[2][0]*m[1][3]+m[0][3]*m[1][0]*m[2][2]-m[0][3]*m[2][0]*m[1][2]
+   inv[1][0] = -m[1][0] * m[2][2] * m[3][3] + m[1][0] * m[3][2] * m[2][3] + m[1][2] * m[2][0] * m[3][3] - m[1][2] * m[3][0] * m[2][3] - m[1][3] * m[2][0] * m[3][2] + m[1][3] * m[3][0] * m[2][2]
+   inv[1][1] = m[0][0] * m[2][2] * m[3][3] - m[0][0] * m[3][2] * m[2][3] - m[0][2] * m[2][0] * m[3][3] + m[0][2] * m[3][0] * m[2][3] + m[0][3] * m[2][0] * m[3][2] - m[0][3] * m[3][0] * m[2][2]
+   inv[1][2] = -m[0][0] * m[1][2] * m[3][3] + m[0][0] * m[3][2] * m[1][3] + m[0][2] * m[1][0] * m[3][3] - m[0][2] * m[3][0] * m[1][3] - m[0][3] * m[1][0] * m[3][2] + m[0][3] * m[3][0] * m[1][2]
+   inv[1][3] = m[0][0] * m[1][2] * m[2][3] - m[0][0] * m[2][2] * m[1][3] - m[0][2] * m[1][0] * m[2][3] + m[0][2] * m[2][0] * m[1][3] + m[0][3] * m[1][0] * m[2][2] - m[0][3] * m[2][0] * m[1][2]
 
-   inv[2][0]=m[1][0]*m[2][1]*m[3][3]-m[1][0]*m[3][1]*m[2][3]-m[1][1]*m[2][0]*m[3][3]+m[1][1]*m[3][0]*m[2][3]+m[1][3]*m[2][0]*m[3][1]-m[1][3]*m[3][0]*m[2][1]
-   inv[2][1]=-m[0][0]*m[2][1]*m[3][3]+m[0][0]*m[3][1]*m[2][3]+m[0][1]*m[2][0]*m[3][3]-m[0][1]*m[3][0]*m[2][3]-m[0][3]*m[2][0]*m[3][1]+m[0][3]*m[3][0]*m[2][1]
-   inv[2][2]=m[0][0]*m[1][1]*m[3][3]-m[0][0]*m[3][1]*m[1][3]-m[0][1]*m[1][0]*m[3][3]+m[0][1]*m[3][0]*m[1][3]+m[0][3]*m[1][0]*m[3][1]-m[0][3]*m[3][0]*m[1][1]
-   inv[2][3]=-m[0][0]*m[1][1]*m[2][3]+m[0][0]*m[2][1]*m[1][3]+m[0][1]*m[1][0]*m[2][3]-m[0][1]*m[2][0]*m[1][3]-m[0][3]*m[1][0]*m[2][1]+m[0][3]*m[2][0]*m[1][1]
+   inv[2][0] = m[1][0] * m[2][1] * m[3][3] - m[1][0] * m[3][1] * m[2][3] - m[1][1] * m[2][0] * m[3][3] + m[1][1] * m[3][0] * m[2][3] + m[1][3] * m[2][0] * m[3][1] - m[1][3] * m[3][0] * m[2][1]
+   inv[2][1] = -m[0][0] * m[2][1] * m[3][3] + m[0][0] * m[3][1] * m[2][3] + m[0][1] * m[2][0] * m[3][3] - m[0][1] * m[3][0] * m[2][3] - m[0][3] * m[2][0] * m[3][1] + m[0][3] * m[3][0] * m[2][1]
+   inv[2][2] = m[0][0] * m[1][1] * m[3][3] - m[0][0] * m[3][1] * m[1][3] - m[0][1] * m[1][0] * m[3][3] + m[0][1] * m[3][0] * m[1][3] + m[0][3] * m[1][0] * m[3][1] - m[0][3] * m[3][0] * m[1][1]
+   inv[2][3] = -m[0][0] * m[1][1] * m[2][3] + m[0][0] * m[2][1] * m[1][3] + m[0][1] * m[1][0] * m[2][3] - m[0][1] * m[2][0] * m[1][3] - m[0][3] * m[1][0] * m[2][1] + m[0][3] * m[2][0] * m[1][1]
 
-   inv[3][0]=-m[1][0]*m[2][1]*m[3][2]+m[1][0]*m[3][1]*m[2][2]+m[1][1]*m[2][0]*m[3][2]-m[1][1]*m[3][0]*m[2][2]-m[1][2]*m[2][0]*m[3][1]+m[1][2]*m[3][0]*m[2][1]
-   inv[3][1]=m[0][0]*m[2][1]*m[3][2]-m[0][0]*m[3][1]*m[2][2]-m[0][1]*m[2][0]*m[3][2]+m[0][1]*m[3][0]*m[2][2]+m[0][2]*m[2][0]*m[3][1]-m[0][2]*m[3][0]*m[2][1]
-   inv[3][2]=-m[0][0]*m[1][1]*m[3][2]+m[0][0]*m[3][1]*m[1][2]+m[0][1]*m[1][0]*m[3][2]-m[0][1]*m[3][0]*m[1][2]-m[0][2]*m[1][0]*m[3][1]+m[0][2]*m[3][0]*m[1][1]
-   inv[3][3]=m[0][0]*m[1][1]*m[2][2]-m[0][0]*m[2][1]*m[1][2]-m[0][1]*m[1][0]*m[2][2]+m[0][1]*m[2][0]*m[1][2]+m[0][2]*m[1][0]*m[2][1]-m[0][2]*m[2][0]*m[1][1]
+   inv[3][0] = -m[1][0] * m[2][1] * m[3][2] + m[1][0] * m[3][1] * m[2][2] + m[1][1] * m[2][0] * m[3][2] - m[1][1] * m[3][0] * m[2][2] - m[1][2] * m[2][0] * m[3][1] + m[1][2] * m[3][0] * m[2][1]
+   inv[3][1] = m[0][0] * m[2][1] * m[3][2] - m[0][0] * m[3][1] * m[2][2] - m[0][1] * m[2][0] * m[3][2] + m[0][1] * m[3][0] * m[2][2] + m[0][2] * m[2][0] * m[3][1] - m[0][2] * m[3][0] * m[2][1]
+   inv[3][2] = -m[0][0] * m[1][1] * m[3][2] + m[0][0] * m[3][1] * m[1][2] + m[0][1] * m[1][0] * m[3][2] - m[0][1] * m[3][0] * m[1][2] - m[0][2] * m[1][0] * m[3][1] + m[0][2] * m[3][0] * m[1][1]
+   inv[3][3] = m[0][0] * m[1][1] * m[2][2] - m[0][0] * m[2][1] * m[1][2] - m[0][1] * m[1][0] * m[2][2] + m[0][1] * m[2][0] * m[1][2] + m[0][2] * m[1][0] * m[2][1] - m[0][2] * m[2][0] * m[1][1]
 
-   invdet = 1./ (m[0][0]*inv[0][0] + m[1][0]*inv[0][1] + m[2][0]*inv[0][2] + m[3][0]*inv[0][3])
+   invdet = 1. / (m[0][0] * inv[0][0] + m[1][0] * inv[0][1] + m[2][0] * inv[0][2] + m[3][0] * inv[0][3])
    for i in range(4):
        for j in range(4):
            inv[i][j] = invdet * inv[i][j]
    return inv
 
 def mulMatrix44(a,b):
-    return tuple( tuple(a[i][0]*b[0][j]+a[i][1]*b[1][j]+a[i][2]*b[2][j]+a[i][3]*b[3][j] for j in xrange(4)) for i in xrange(4) )
+    return tuple(tuple(a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j] + a[i][3] * b[3][j] for j in range(4)) for i in range(4))
 
 def applyMatrix44(a,v):
     if a is None:
         return v
-    return V3(a[i][0]*v[0]+a[i][1]*v[1]+a[i][2]*v[2]+a[i][3] for i in range(3))
+    return V3(a[i][0] * v[0] + a[i][1] * v[1] + a[i][2] * v[2] + a[i][3] for i in range(3))
 
 def translMatrix44(v):
-    return tuple( tuple((IDENTITY44[i][j] if j < 3 or i == 3 else v[i]) for j in range(4)) for i in range(4))
+    return tuple(tuple((IDENTITY44[i][j] if j < 3 or i == 3 else v[i]) for j in range(4)) for i in range(4))
 
 def safeEval(p):
     if '__' in p:
         raise ValueError("Insecure entry")
     return eval(p)
 
-def parseBlock(data,default):
-    if '__' in data:
-        raise ValueError("Insecure entry")
-    b = Block(0,0)
-    tokens = re.split("[\\s,]+", data)
-    haveBlock = False
-    start = eval(tokens[0])
-    if isinstance(start,Block):
-        b = copy(start)
-    else:
-        b.id = int(start)
-    if len(tokens)>1:
-        b.data = int(eval(tokens[1]))
-    return Block(b.id,b.data)
-
 class MeshFile(object):
     def __init__(self):
         self.vertices = []
         self.faces = []
         self.materialIndexDict = {None:0}
+        self.defaultMaterialBlockDict = {}
         self.materials = []
         self.objectData = {}
         self.objects = []
+
+class MeshSTL(MeshFile):
+    def __init__(self, filename, myopen=open, swapYZ=False):
+        super(MeshSTL,self).__init__()
+
+        with myopen(filename, "rb") as f:
+             header = f.read(80)
+             assert len(header) == 80
+             
+             vertexCount = 0
+             lastAttribute = 0
+             curMaterial = 0
+             lastAttribute = None
+             materialCount = 1
+             self.materials.append("default")
+             
+             if header.startswith(b"solid"):
+                 vertexDict = {}
+                 triangle = None
+                 for line in f:
+                    line = line.strip()
+                    if line.startswith('endfacet'):
+                        if triangle is not None:
+                            self.faces.append((curMaterial, tuple(triangle)))
+                            triangle = None
+                    elif line.startswith('facet'):
+                        triangle = []
+                    elif triangle is not None and line.startswith('vertex'):
+                        v = tuple(float(x) for x in line.split()[1:4])
+                        if swapYZ:
+                            v = (v[0],v[2],-v[1])
+                        if v in vertexDict:
+                            triangle.append(vertexDict[v])
+                        else:
+                            n = len(vertexDict)
+                            vertexDict[v] = n
+                            triangle.append(n)
+                            self.vertices.append(V3(v))
+                 if self.faces:
+                    return
+                 else:
+                    f.seek(5)
+
+             numTriangles = struct.unpack("<I", f.read(4))[0]
+             
+             for i in range(numTriangles):
+                assert len(f.read(12))==12 # skip normal
+                for i in range(3):
+                    v = struct.unpack("<3f", f.read(12))
+                    if swapYZ:
+                        v = (v[0],v[2],-v[1])
+                    self.vertices.append(V3(v))
+                attribute = struct.unpack("<H", f.read(2))[0]
+                if attribute is not lastAttribute:
+                    lastAttribute = attribute
+                    if attribute & 0x8000:
+                        r = int(( ( attribute >> 10 ) & 0x1F ) / 31. * 255)
+                        g = int((( attribute >> 5 ) & 0x1F ) / 31. * 255)
+                        b = int( ( attribute & 0x1F ) / 31. * 255)
+                        materialName = "stl_{:02X}{:02X}{:02X}".format(r,g,b)
+                    else:
+                        materialName = "default"
+                    if materialName not in self.materials:
+                        self.materials.append(materialName)
+                        curMaterial = materialCount
+                        materialCount += 1
+                        self.defaultMaterialBlockDict[materialName] = colors.rgbToBlock((r,g,b))[0]
+                    else:
+                        curMaterial = self.materials.index(materialName)
+                        
+                self.faces.append((curMaterial,(vertexCount,vertexCount+1,vertexCount+2)))
+                vertexCount += 3
+
+        assert self.vertices
+        assert self.faces
 
 class MeshPLY(MeshFile):
     """
@@ -138,7 +203,7 @@ class MeshPLY(MeshFile):
                  if line == "end_header":
                      break
                  args = re.split("\\s+",line)
-                 if len(args)>=3 and args[0]=='element':
+                 if len(args) >= 3 and args[0] == 'element':
                      elementCounts.append((args[1],int(args[2])))
              assert len(elementCounts) >= 2
              for element,count in elementCounts:
@@ -333,8 +398,8 @@ class Mesh3DS(MeshFile):
         self.skip(lengthRemaining)
 
     def handle_KEYF_PIVOT(self,lengthRemaining):
-        self.object_pivot = V3(struct.unpack("<fff", self.file.read(3*4)))
-        lengthRemaining -= 3*4
+        self.object_pivot = V3(struct.unpack("<fff", self.file.read(3 * 4)))
+        lengthRemaining -= 3 * 4
         self.skip(lengthRemaining)
 
     def handle_EDIT_OBJECT(self,lengthRemaining):
@@ -379,17 +444,17 @@ class Mesh3DS(MeshFile):
     def handle_TRI_VERTEXL(self,lengthRemaining):
         count = struct.unpack("<H", self.file.read(2))[0]
         lengthRemaining -= 2
-        for i in xrange(count):
-            self.object_vertices.append(V3(struct.unpack("<fff", self.file.read(3*4))))
-            lengthRemaining -= 3*4
+        for i in range(count):
+            self.object_vertices.append(V3(struct.unpack("<fff", self.file.read(3 * 4))))
+            lengthRemaining -= 3 * 4
         self.skip(lengthRemaining)
 
     def handle_TRI_FACEL1(self,lengthRemaining):
         count = struct.unpack("<H", self.file.read(2))[0]
         lengthRemaining -= 2
-        for i in xrange(count):
-            self.object_faces.append(struct.unpack("<HHH", self.file.read(2*3)))
-            lengthRemaining -= 2*3
+        for i in range(count):
+            self.object_faces.append(struct.unpack("<HHH", self.file.read(2 * 3)))
+            lengthRemaining -= 2 * 3
             self.skip(2)
             lengthRemaining -= 2
         while lengthRemaining > 0:
@@ -403,9 +468,9 @@ class Mesh3DS(MeshFile):
                 lengthRemaining -= chunkLength - 6
 
     def handle_TRI_LOCAL(self,lengthRemaining):
-        m = [ [1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1] ]
-        for i in xrange(4):
-            for j in xrange(3):
+        m = [[1,0,0,0], [0,1,0,0], [0,0,1,0], [0,0,0,1]]
+        for i in range(4):
+            for j in range(3):
                 m[j][i] = struct.unpack("<f", self.file.read(4))[0]
                 lengthRemaining -= 4
         self.object_matrix = m
@@ -417,18 +482,18 @@ class Mesh3DS(MeshFile):
         count = struct.unpack("<H", self.file.read(2))[0]
         lengthRemaining -= 2
         faces = set()
-        for i in xrange(count):
+        for i in range(count):
             faces.add(struct.unpack("<H", self.file.read(2))[0])
             lengthRemaining -= 2
-        self.object_material_data.append( (name, faces) )
+        self.object_material_data.append((name, faces))
         self.skip(lengthRemaining)
 
 class Mesh(object):
     UNSPECIFIED = None
     SUPPORTED_ARCHIVES = set(['gz','zip'])
 
-    def __init__(self,infile,minecraft=None,rewrite=True):
-         if minecraft:
+    def __init__(self,infile,minecraft=None,rewrite=True,swapYZ=None):
+         if minecraft is not None:
              self.setBlock = minecraft.setBlock
              self.message = minecraft.postToChat
          else:
@@ -437,14 +502,14 @@ class Mesh(object):
                  self.output[v] = b
              self.setBlock = setBlock
              def message(m):
-                 print m
+                 print(m)
              self.message = message
 
          self.rewrite = rewrite
          self.url = None
          self.urlgz = None
          self.urlzip = None
-         self.swapYZ = None
+         self.swapYZ = swapYZ
          self.credits = None
          self.size = 100
          self.preYaw = 0
@@ -466,9 +531,9 @@ class Mesh(object):
          self.corner2 = None
          self.endLineIndex = None
          self.specifiedMeshName = None
-
+         
          base,ext = os.path.splitext(infile)
-         if ext.lower() == '.obj' or ext.lower() == ".3ds" or ext.lower() == ".ply":
+         if ext.lower() == '.obj' or ext.lower() == ".3ds" or ext.lower() == ".ply" or ext.lower() == ".stl":
              self.meshName = infile
              self.controlFile = base + ".txt"
          else:
@@ -476,6 +541,8 @@ class Mesh(object):
                  self.meshName = base + ".3ds"
              elif os.path.isfile(base + ".ply") or os.path.isfile(base + ".ply.gz"):
                  self.meshName = base + ".ply"
+             elif os.path.isfile(base + ".stl") or os.path.isfile(base + ".stl.gz"):
+                 self.meshName = base + ".stl"
              else:
                  self.meshName = base + ".obj"
 
@@ -496,13 +563,13 @@ class Mesh(object):
                  found = re.match('([^\\s]+) (.*)$', line)
                  if found:
                      def getString():
-                         if found.group(2).startswith('"') or found.group(2).startswith("'"):
+                         if found.group(2).startswith('"') or found.group(2).startswith("'") or found.group(2).startswith('u"') or found.group(2).startswith("u'"):
                              return safeEval(found.group(2))
                          else:
                              return found.group(2)
                      token = found.group(1).lower()
                      if materialMode:
-                         self.materialBlockDict[found.group(1)] = parseBlock(found.group(2),self.default)
+                         self.materialBlockDict[found.group(1)] = Block.byName(found.group(2),default=self.default)
                      elif token == "file":
                          self.specifiedMeshName = getString()
                          self.meshName = dirname + "/" + self.specifiedMeshName
@@ -521,7 +588,7 @@ class Mesh(object):
                      elif token == "size":
                          self.size = safeEval(found.group(2))
                      elif token == "default":
-                         self.default = parseBlock(found.group(2),self.default)
+                         self.default = Block.byName(found.group(2),default=self.default)
                      elif token == "yaw":
                          self.preYaw = safeEval(found.group(2))
                      elif token == "pitch":
@@ -542,16 +609,16 @@ class Mesh(object):
              if self.archive in Mesh.SUPPORTED_ARCHIVES:
                  self.archive = self.meshName + "." + self.archive
              if self.swapYZ is None:
-                 self.swapYZ = self.meshName.lower().endswith(".3ds")
+                 self.swapYZ = self.meshName.lower().endswith(".3ds") or self.meshName.lower().endswith(".stl") 
          elif rewrite:
              if not os.path.isfile(self.meshName):
                  raise IOError("Cannot find mesh file")
-             if self.meshName.lower().endswith(".3ds"):
+             if self.swapYZ is None and (self.meshName.lower().endswith(".3ds") or self.meshName.lower().endswith(".stl")):
                  self.swapYZ = True
              self.message("Creating a default control file")
              with open(self.controlFile,"w") as f:
                 self.controlFileLines = []
-                self.controlFileLines.append("file "+repr(os.path.basename(self.meshName))+"\n")
+                self.controlFileLines.append("file " + repr(os.path.basename(self.meshName)) + "\n")
                 if self.swapYZ:
                    self.controlFileLines.append("swapyz 1\n")
                 else:
@@ -560,7 +627,7 @@ class Mesh(object):
                 self.controlFileLines.append("yaw 0\n")
                 self.controlFileLines.append("pitch 0\n")
                 self.controlFileLines.append("roll 0\n")
-                self.controlFileLines.append("size "+str(self.size)+"\n")
+                self.controlFileLines.append("size " + str(self.size) + "\n")
                 self.controlFileLines.append("default STONE\n")
                 self.controlFileLines.append("#order material position\n")
                 self.controlFileLines.append("materials\n")
@@ -584,30 +651,30 @@ class Mesh(object):
                 raise IOError("Unsupported archive type")
         if os.path.isfile(self.meshName):
             return self.meshName, open, None
-        if os.path.isfile(self.meshName+".gz"):
-            return self.meshName+".gz", gzip.open, None
+        if os.path.isfile(self.meshName + ".gz"):
+            return self.meshName + ".gz", gzip.open, None
         if tryDownload and (self.url or self.urlgz):
             self.message("Downloading mesh")
             urlzip = False
             if self.urlgz:
                 url = self.urlgz
-                outName = self.meshName+".gz"
+                outName = self.meshName + ".gz"
             elif self.url:
                 url = self.url
                 if self.archive:
                     outName = self.archive
                 else:
                     outName = self.meshName
-            content = urllib2.urlopen(url).read()
-            with open(outName+".tempDownload","wb") as f:
+            content = urllib_request.urlopen(url).read()
+            with open(outName + ".tempDownload","wb") as f:
                 f.write(content)
-            os.rename(outName+".tempDownload", outName)
+            os.rename(outName + ".tempDownload", outName)
             self.message("Downloaded")
             return self.getFile()
         else:
             raise IOError("File not found")
 
-    def read(self, rewriteControlFile = None):
+    def read(self, rewriteControlFile=None):
         if self.swapYZ:
             fix = lambda list : V3(list[0], list[2], -list[1])
         else:
@@ -622,10 +689,17 @@ class Mesh(object):
 
         name,myopen,closeArchive = self.getFile()
         if self.credits:
-            self.message("Credits: "+self.credits)
+            self.message("Credits: " + self.credits)
+            
+        mesh = None
 
-        if name.endswith(".3ds") or name.endswith(".3ds.gz") or name.endswith(".ply") or name.endswith(".ply.gz"):
-            MeshFormat = Mesh3DS if name.endswith(".3ds") or name.endswith(".3ds.gz") else MeshPLY
+        if name.endswith(".3ds") or name.endswith(".3ds.gz") or name.endswith(".ply") or name.endswith(".ply.gz") or name.endswith(".stl") or name.endswith(".stl.gz"):
+            if name.endswith(".3ds") or name.endswith(".3ds.gz"):
+                MeshFormat = Mesh3DS
+            elif name.endswith(".ply") or name.endswith(".ply.gz"):
+                MeshFormat = MeshPLY
+            else:
+                MeshFormat = MeshSTL
             mesh = MeshFormat(name,myopen=myopen,swapYZ=self.swapYZ)
             self.baseVertices = mesh.vertices
             self.faces = mesh.faces
@@ -633,15 +707,17 @@ class Mesh(object):
             self.materialOrders = []
             for name in mesh.materials:
                 self.materialOrders.append(self.materialOrderDict.get(name, 0))
-                self.materialBlocks.append(self.materialBlockDict.get(name, self.default))
-                if name not in self.materialBlockDict and name not in warned:
-                    self.message("Material "+name+" not defined")
+                self.materialBlocks.append(self.materialBlockDict.get(name, 
+                    mesh.defaultMaterialBlockDict.get(name, self.default)))
+                if name != "default" and name not in self.materialBlockDict and name not in warned:
+                    if name not in mesh.defaultMaterialBlockDict:
+                        self.message("Material " + name + " not defined")
                     warned.add(name)
             if len(self.materialBlocks) == 0:
                 self.materialBlocks.append(self.default)
         else:
-            self.materialBlocks = [ self.default ]
-            self.materialOrders = [ 0 ]
+            self.materialBlocks = [self.default]
+            self.materialOrders = [0]
             materialIndexDict = { Mesh.UNSPECIFIED: 0 }
 
             with myopen(name) as fh:
@@ -657,12 +733,12 @@ class Mesh(object):
                     #    self.normals.append(fix(line[1:]))
                     elif line[0] == 'f' : #face
                         face = line[1:]
-                        for i in xrange(0, len(face)) :
+                        for i in range(0, len(face)) :
                             # OBJ indexies are 1 based not 0 based hence the -1
                             # convert indexes to integer
-                            face[i] = int( face[i].split('/')[0] ) - 1
+                            face[i] = int(face[i].split('/')[0]) - 1
                             # skip texture and normal
-    #                        for j in xrange(0, len(face[i])) :
+    #                        for j in range(0, len(face[i])) :
     #                            if face[i][j] != "":
     #                                face[i][j] = int(face[i][j]) - 1
                         #prepend the material currently in use to the face
@@ -677,7 +753,7 @@ class Mesh(object):
                             self.materialOrders.append(self.materialOrderDict.get(name, 0))
                             self.materialBlocks.append(self.materialBlockDict.get(name, self.default))
                             if name not in self.materialBlockDict and name not in warned:
-                                self.message("Material "+name+" not defined")
+                                self.message("Material " + name + " not defined")
                                 warned.add(name)
 
         if closeArchive:
@@ -686,23 +762,28 @@ class Mesh(object):
         if self.rewrite and warned:
             try:
                 self.message("Rewriting control file to include missing materials")
-                with open(self.controlFile+".tempFile", "w") as f:
+                with open(self.controlFile + ".tempFile", "w") as f:
                     f.write(''.join(self.controlFileLines[:self.endLineIndex]))
                     if not self.haveMaterialArea:
                         f.write('\nmaterials\n')
                     for material in warned:
-                        f.write(material+' default\n')
+                        if mesh is None or material not in mesh.defaultMaterialBlockDict:
+                            f.write(material + ' default\n')
+                        else:
+                            block = mesh.defaultMaterialBlockDict[material]
+                            f.write(material + ' ' + str(block.id) + ' ' + str(block.data) + '\n')
                     f.write(''.join(self.controlFileLines[self.endLineIndex:]))
                 try:
-                    os.unlink(self.controlFile+".bak")
+                    os.unlink(self.controlFile + ".bak")
                 except:
                     pass
                 try:
-                    os.rename(self.controlFile, self.controlFile+".bak")
+                    os.rename(self.controlFile, self.controlFile + ".bak")
                 except:
                     pass
-                os.rename(self.controlFile+".tempFile", self.controlFile)
-            except:
+                os.rename(self.controlFile + ".tempFile", self.controlFile)
+            except Exception as err:
+                self.message(str(err))
                 self.message("Couldn't rewrite control file")
 
     def scale(self, bottomCenter, matrix=None):
@@ -722,12 +803,12 @@ class Mesh(object):
                 if maximum[i] == None or vertex[i] > maximum[i]:
                     maximum[i] = vertex[i]
 
-        center = [(maximum[i] + minimum[i])/2 for i in range(3)]
+        center = [(maximum[i] + minimum[i]) / 2 for i in range(3)]
 
-        maxsize = max( ( maximum[i]-minimum[i] for i in range(3) ) )
+        maxsize = max(( maximum[i] - minimum[i] for i in range(3) ))
 
         scale = self.size / maxsize
-        translate = V3(bottomCenter.x-scale*center[0], bottomCenter.y-scale*minimum[1], bottomCenter.z-scale*center[2])
+        translate = V3(bottomCenter.x - scale * center[0], bottomCenter.y - scale * minimum[1], bottomCenter.z - scale * center[2])
 
         for i in range(len(self.vertices)):
             self.vertices[i] = self.vertices[i] * scale + translate
@@ -736,10 +817,10 @@ class Mesh(object):
         self.corner2 = (V3(maximum) * scale + translate).iceil()
 
     def drawVertices(self, vertices, material):
-        block = self.materialBlocks[material]
+        b = self.materialBlocks[material]
         for vertex in vertices:
             if material != self.drawRecord.get(vertex):
-                self.setBlock(vertex, block)
+                self.setBlock(vertex, b)
                 self.drawRecord[vertex] = material
 
     def render(self):
@@ -762,16 +843,23 @@ def go(filename, args=[]):
 
     playerPos = mc.player.getPos()
 
-    mc.postToChat("Preparing")
-    mesh = Mesh(filename, minecraft=mc)
-    mc.postToChat("Reading")
-    mesh.read()
-    mc.postToChat("Scaling")
-
     opts = ""
 
     if args and (args[0] == '-' or re.match("^-?[a-zA-Z]", args[0])):
        opts = args.pop(0)
+       
+    meshArguments = {}
+    
+    if 'y' in opts:
+        meshArguments['swapYZ'] = False
+    elif 'Y' in opts:
+        meshArguments['swapYZ'] = True
+
+    mc.postToChat("Preparing")
+    mesh = Mesh(filename, minecraft=mc, **meshArguments)
+    mc.postToChat("Reading")
+    mesh.read()
+    mc.postToChat("Scaling")
 
     if args:
        s = args.pop(0)
@@ -801,54 +889,66 @@ def go(filename, args=[]):
 
 # main program
 if __name__ == "__main__":
-    if len(sys.argv)<2:
+    if len(sys.argv) < 2:
         if settings.isPE:
             go("models/RaspberryPi.txt")
         else:
-            from Tkinter import *
-            from tkFileDialog import askopenfilename
-            master = Tk()
+            if int(sys.version[0]) < 3:
+                from tkFileDialog import askopenfilename
+                import Tkinter as tkinter
+            else:
+                from tkinter.filedialog import askopenfilename
+                import tkinter as tkinter
+            master = tkinter.Tk()
             master.wm_title("render")
             master.attributes("-topmost", True)
-            Label(master, text='Size').grid(row=0)
-            size = Entry(master)
+            tkinter.Label(master, text='Size').grid(row=0)
+            size = tkinter.Entry(master)
             size.grid(row=0,column=1)
-            size.delete(0,END)
-            Label(master, text='Yaw').grid(row=1)
-            yaw = Entry(master)
+            size.delete(0,tkinter.END)
+            tkinter.Label(master, text='Yaw').grid(row=1)
+            yaw = tkinter.Entry(master)
             yaw.grid(row=1,column=1)
-            yaw.delete(0,END)
+            yaw.delete(0,tkinter.END)
             yaw.insert(0,"0")
-            Label(master, text='Pitch:').grid(row=2)
-            pitch = Entry(master)
+            tkinter.Label(master, text='Pitch:').grid(row=2)
+            pitch = tkinter.Entry(master)
             pitch.grid(row=2,column=1)
-            pitch.delete(0,END)
+            pitch.delete(0,tkinter.END)
             pitch.insert(0,"0")
-            Label(master, text='Roll:').grid(row=3)
-            roll = Entry(master)
+            tkinter.Label(master, text='Roll:').grid(row=3)
+            roll = tkinter.Entry(master)
             roll.grid(row=3,column=1)
-            roll.delete(0,END)
+            roll.delete(0,tkinter.END)
             roll.insert(0,"0")
-            clearing = IntVar()
-            c = Checkbutton(master, text="Clear area", variable = clearing)
+            clearing = tkinter.IntVar()
+            c = tkinter.Checkbutton(master, text="Clear area", variable = clearing)
             c.grid(row=4,column=0,columnspan=2)
             c.select()
+            swapYZ = tkinter.IntVar()
+            sw = tkinter.Checkbutton(master, text="Default swap YZ", variable = swapYZ)
+            sw.grid(row=5,column=0,columnspan=2)
+            sw.select()
 
             def selectFileAndGo():
-                name=askopenfilename(initialdir='models',filetypes=['controlfile {*.txt}'])
+                name = askopenfilename(initialdir='models',filetypes=['controlfile {*.txt}', 'all {*}'])
                 if name:
                      options = '-'
-                     if not clearing:
+                     if not clearing.get():
                          options += 'n'
+                     if swapYZ.get():
+                         options += 'Y'
+                     else:
+                         options += 'y'
                      args = [options, size.get(), yaw.get(), pitch.get(), roll.get()]
                      master.destroy()
                      go(name, args)
                 else:
                      master.destroy()
 
-            b = Button(master, text="Select file and go",command = selectFileAndGo)
-            b.grid(row=5,column=0,columnspan=2,rowspan=2)
+            b = tkinter.Button(master, text="Select file and go",command = selectFileAndGo)
+            b.grid(row=6,column=0,columnspan=2,rowspan=2)
 
-            mainloop()
+            tkinter.mainloop()
     else:
         go(os.path.dirname(os.path.realpath(sys.argv[0])) + "/" + "models/" + sys.argv[1] + ".txt", sys.argv[2:])

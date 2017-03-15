@@ -1,8 +1,8 @@
 #
-# Code under the MIT license by Alexander Pruss
+# Code by Alexander Pruss and under the MIT license
 #
 
-from turtle import *
+from mineturtle import *
 
 def tree(depth):
     t.up(30)

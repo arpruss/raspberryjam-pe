@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # Chess interface for Thomas Ahle's sunfish engine
 # Code by Alexander Pruss under the MIT license
@@ -8,7 +9,7 @@
 #
 
 from collections import OrderedDict
-from mc import *
+from mine import *
 from vehicle import *
 from text import *
 from fonts import *
@@ -16,29 +17,37 @@ import drawing
 import time
 import sys
 
-LABEL_BLOCK = REDSTONE_BLOCK
+LABEL_BLOCK = block.REDSTONE_BLOCK
 
 try:
     import _sunfish as sunfish
 except:
     try:
-        import urllib2
-        import os.path
-        content = urllib2.urlopen("https://raw.githubusercontent.com/thomasahle/sunfish/master/sunfish.py").read()
-        f=open(os.path.join(os.path.dirname(sys.argv[0]),"_sunfish.py"),"w")
-        f.write("# From: https://raw.githubusercontent.com/thomasahle/sunfish/master/sunfish.py\n")
-        f.write("# Covered by the GPL 2 license\n")
-        f.write(content)
+        import urllib.request as urllib_request
+    except:
+        import urllib2 as urllib_request
+    import os.path
+    import os
+    content = urllib_request.urlopen("https://raw.githubusercontent.com/thomasahle/sunfish/master/sunfish.py").read()
+    filename = os.path.join(os.path.dirname(sys.argv[0]),"_sunfish.py")
+    try:
+        f=open(filename,"wb")
+        f.write(b"# -*- coding: utf-8 -*-")
+        f.write(b"# From: https://raw.githubusercontent.com/thomasahle/sunfish/master/sunfish.py\n")
+        f.write(b"# Covered by the GPL 2 license\n")
+        f.write(bytearray(content))
         f.close()
         import _sunfish as sunfish
     except:
-        print "Failed download: You need sunfish.py for this script."
-
+        os.remove(filename)
+        print("Error creating _sunfish.py")
+        sys.exit(0)
+            
 def getCoords(row,col):
     return (corner.x+8*row+4,corner.y,corner.z+8*col+4)
 
 def toRowCol(n, black):
-    row = 7 - ((n - 20) / 10)
+    row = 7 - ((n - 20) // 10)
     col = n % 10 - 1
     if black:
         col = 7 - col
@@ -64,18 +73,18 @@ def toAlgebraicMove(rowColMove):
     return 'abcdefgh'[c0]+str(r0+1)+'abcdefgh'[c1]+str(r1+1)
 
 def drawSquare(row,col):
-    block = OBSIDIAN if (col + row) % 2 == 0 else QUARTZ_BLOCK
-    mc.setBlocks(corner.x+row*8,corner.y-1,corner.z+col*8,corner.x+row*8+7,corner.y-1,corner.z+col*8+7,block)
+    b = block.OBSIDIAN if (col + row) % 2 == 0 else block.QUARTZ_BLOCK
+    mc.setBlocks(corner.x+row*8,corner.y-1,corner.z+col*8,corner.x+row*8+7,corner.y-1,corner.z+col*8+7,b)
 
 def highlightSquare(row,col):
     mc.setBlocks(corner.x+row*8,corner.y-1,corner.z+col*8,
-                    corner.x+row*8+7,corner.y-1,corner.z+col*8,REDSTONE_BLOCK)
+                    corner.x+row*8+7,corner.y-1,corner.z+col*8,block.REDSTONE_BLOCK)
     mc.setBlocks(corner.x+row*8,corner.y-1,corner.z+col*8,
-                    corner.x+row*8,corner.y-1,corner.z+col*8+7,REDSTONE_BLOCK)
+                    corner.x+row*8,corner.y-1,corner.z+col*8+7,block.REDSTONE_BLOCK)
     mc.setBlocks(corner.x+row*8+7,corner.y-1,corner.z+col*8,
-                    corner.x+row*8+7,corner.y-1,corner.z+col*8+7,REDSTONE_BLOCK)
+                    corner.x+row*8+7,corner.y-1,corner.z+col*8+7,block.REDSTONE_BLOCK)
     mc.setBlocks(corner.x+row*8,corner.y-1,corner.z+col*8+7,
-                    corner.x+row*8+7,corner.y-1,corner.z+col*8+7,REDSTONE_BLOCK)
+                    corner.x+row*8+7,corner.y-1,corner.z+col*8+7,block.REDSTONE_BLOCK)
 
 def drawEmptyBoard():
     mc.setBlocks(corner.x,corner.y,corner.z,corner.x+63,corner.y+MAXHEIGHT,corner.z+63,0)
@@ -184,8 +193,8 @@ KING = (
     ".xxxx.",
     "xxxxxx"))
 
-BLACK = WOOL_GRAY
-WHITE = WOOL_WHITE
+BLACK = block.WOOL_GRAY
+WHITE = block.WOOL_WHITE
 
 pieceBitmaps = {
     'P':PAWN,
@@ -204,11 +213,11 @@ def toVehicle(bitmaps,block,piece):
     height = len(bitmaps[0])
     width = len(bitmaps[0][0])
     for plane in range(depth):
-        x = plane-depth/2
+        x = plane-depth//2
         for row in range(height):
             y = row
             for col in range(width):
-                z = col-width/2
+                z = col-width//2
                 if bitmaps[plane][height-1-row][col] == 'x':
                     dict[(x,y,z)] = block
     v = Vehicle(mc,True)
@@ -272,7 +281,7 @@ def inputMove():
             c = hits[0].pos
             if ( corner.x <= c.x and corner.y -1 <= c.y and corner.z <= c.z and
                  c.x < corner.x + 64 and c.y < corner.y + MAXHEIGHT and c.z < corner.z + 64 ):
-                m = (c.x - corner.x) / 8, (c.z - corner.z) /8
+                m = (c.x - corner.x) // 8, (c.z - corner.z) //8
                 if len(moves) == 0 or m[0] != moves[0][0] or m[1] != moves[0][1]:
                     highlightSquare(m[0],m[1])
                     moves.append(m)
@@ -356,7 +365,7 @@ def myGetBlockWithData(pos):
     for boardPos in pieces:
         if pos in pieces[boardPos].curVehicle:
             return pieces[boardPos].curVehicle[pos]
-    return AIR
+    return block.AIR
 
 # z coordinate is cols
 # x coordinate is rows
@@ -390,7 +399,7 @@ while True:
             sunfish.tp = OrderedDict()
             move,score = sunfish.search(pos)
         else:
-            moves = tuple(pos.genMoves())
+            moves = tuple(pos.gen_moves())
             move = None
             while move not in moves:
                 if move is not None:

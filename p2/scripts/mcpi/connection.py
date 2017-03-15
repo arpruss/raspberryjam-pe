@@ -1,10 +1,14 @@
+from __future__ import absolute_import
+
 import socket
 import select
 import sys
 import atexit
 import os
 import platform
-from util import flatten_parameters_to_string
+import base64
+from hashlib import md5
+from .util import flatten_parameters_to_string
 
 """ @author: Aron Nieminen, Mojang AB"""
 
@@ -16,6 +20,7 @@ class Connection:
     RequestFailed = "Fail"
 
     def __init__(self, address=None, port=None):
+        self.windows = (platform.system() == "Windows" or platform.system().startswith("CYGWIN_NT"))
         if address==None:
             try:
                  address = os.environ['MINECRAFT_API_HOST']
@@ -26,18 +31,18 @@ class Connection:
                  port = int(os.environ['MINECRAFT_API_PORT'])
             except KeyError:
                  port = 4711
-        if int(sys.version[0]) >= 3:
+        if sys.version_info[0] >= 3:
             self.send = self.send_python3
             self.send_flat = self.send_flat_python3
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((address, port))
         self.readFile = self.socket.makefile("r")
         self.lastSent = ""
-        if platform.system() == "Windows":
+        if self.windows:
             atexit.register(self.close)
 
     def __del__(self):
-        if platform.system() == "Windows":
+        if self.windows:
             self.close()
             try:
                 atexit.unregister(self.close)
@@ -46,13 +51,29 @@ class Connection:
 
     def close(self):
         try:
-            self.readFile.close()
+            if self.windows:
+                # ugly hack to block until all sending is completed
+                self.sendReceive("world.getBlock",0,0,0)
         except:
             pass
         try:
             self.socket.close()
         except:
             pass
+            
+    @staticmethod
+    def tohex(data):
+        return "".join((hex(b) for b in data))
+            
+    def authenticate(self, username, password):
+        challenge = self.sendReceive("world.getBlock",0,0,0)
+        if challenge.startswith("security.challenge "):
+            salt = challenge[19:].rstrip()
+            if sys.version_info[0] >= 3:
+                auth = md5((salt+":"+username+":"+password).encode("utf-8")).hexdigest()
+            else:
+                auth = md5(salt+":"+username+":"+password).hexdigest()
+            self.send("security.authenticate", auth)
 
     def drain(self):
         """Drains the socket of incoming data"""
@@ -71,7 +92,7 @@ class Connection:
     def send(self, f, *data):
         """Sends data. Note that a trailing newline '\n' is added here"""
         s = "%s(%s)\n"%(f, flatten_parameters_to_string(data))
-        #print "f,data:",f,data
+        #print "s:"+s+":"
         self.drain()
         self.lastSent = s
         self.socket.sendall(s)

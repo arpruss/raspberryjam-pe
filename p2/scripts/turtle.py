@@ -1,6 +1,11 @@
 #
-# Code under the MIT license by Alexander Pruss
+# DEPRECATED: use mineturtle.py
+#
+
+#
+# Code by Alexander Pruss and under the MIT license
 #
 # for backwards compatibility with earlier versions of
 # Pruss's instructable
-from mcturtle import *
+#
+from mine import *

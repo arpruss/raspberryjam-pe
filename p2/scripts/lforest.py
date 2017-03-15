@@ -1,12 +1,13 @@
+from __future__ import print_function
 #
-# Code under the MIT license by Alexander Pruss
+# Code by Alexander Pruss and under the MIT license
 #
 # L-system with turtle graphics
 #
 
 import lsystem
 import random
-from mcturtle import *
+from mineturtle import *
 
 t = Turtle()
 t.pendelay(0)
@@ -23,12 +24,12 @@ def tree():
     length = 10
 
     t.pendown()
-    t.penblock(WOOD)
+    t.penblock(block.WOOD)
     rules = {'A': [(0.55,'^f[^^f>>>>>>A]>>>[^^f>>>>>>A]>>>>>[^^f>>>>>>A]'),
                     (0.25,'^f>>[^^f>>>>>>A]>>>[^^f>>>>>>A]')]}
 
     axiom = 'fA'
-    material = WOOD
+    material = block.WOOD
 
     t.penwidth(thickness)
     t.penblock(material)
@@ -49,7 +50,7 @@ def tree():
         if thickness < 1:
             thickness = 1
         if length <= 1.6:
-            t.penblock(LEAVES_OAK_PERMANENT)
+            t.penblock(block.LEAVES_OAK_PERMANENT)
         t.penwidth(thickness)
 
     def pop():
@@ -98,7 +99,7 @@ while tryCount < MAX_TRIES:
     positions.append((x,z))
     tryCount = 0
     t.goto(x,cy,z)
-    print x,cy,z
+    print(x,cy,z)
     t.push()
     t.roll(random.uniform(0,30))
     tree()

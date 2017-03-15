@@ -1,5 +1,5 @@
 #
-# Code under the MIT license by Alexander Pruss
+# Code by Alexander Pruss and under the MIT license
 #
 
 """
@@ -12,7 +12,9 @@
    q: don't want the vehicle to flash as it is scanned
    d: liquids don't count as terrain
    l: load vehicle from vehicles/name.py
+   m: transform vehicle from vehicles/name.py to vehicles/name.stl monochromatic mesh
    s: save vehicle to vehicles/name.py and quit
+   r: scan a rectangular region, specified by right tapping with the sword on extrema
 
  The vehicle detection algorithm works as follows:
    first, search for nearest non-terrain block within distance SCAN_DISTANCE of the player
@@ -21,28 +23,38 @@
    in bubble mode, add the largest set of air blocks, excluding diagonal connections, or a small bubble about the
      player if the the vehicle is not airtight
 """
+from __future__ import print_function
 
 from mcpi.minecraft import *
 from mcpi.block import *
 from math import *
-from sys import maxsize
+import sys
 from copy import copy
 from ast import literal_eval
+from struct import pack
 import re
 
 def getSavePath(directory, extension):
-    import Tkinter
-    from tkFileDialog import asksaveasfilename
-    master = Tkinter.Tk()
+    if int(sys.version[0]) < 3:
+        from tkFileDialog import asksaveasfilename
+        from Tkinter import Tk
+    else:
+        from tkinter.filedialog import asksaveasfilename
+        from tkinter import Tk
+    master = Tk()
     master.attributes("-topmost", True)
     path = asksaveasfilename(initialdir=directory,filetypes=['vehicle {*.'+extension+'}'],defaultextension="."+extension,title="Save")
     master.destroy()
     return path
 
 def getLoadPath(directory, extension):
-    import Tkinter
-    from tkFileDialog import askopenfilename
-    master = Tkinter.Tk()
+    if int(sys.version[0]) < 3:
+        from tkFileDialog import askopenfilename
+        from Tkinter import Tk
+    else:
+        from tkinter.filedialog import askopenfilename
+        from tkinter import Tk
+    master = Tk()
     master.attributes("-topmost", True)
     path = askopenfilename(initialdir=directory,filetypes=['vehicle {*.'+extension+'}'],title="Open")
     master.destroy()
@@ -73,17 +85,18 @@ class Vehicle():
     REDSTONE_COMPARATORS_REPEATERS = set((93,94,149,150,356,404))
     EMPTY = {}
 
-    def __init__(self,mc,nondestructive=False):
+    def __init__(self,mc=None,nondestructive=False):
         self.mc = mc
         self.nondestructive = nondestructive
-        self.highWater = -maxsize-1
+        self.highWater = None
         self.baseVehicle = {}
-        if hasattr(Minecraft, 'getBlockWithNBT'):
-            self.getBlockWithData = self.mc.getBlockWithNBT
-            self.setBlockWithData = self.mc.setBlockWithNBT
-        else:
-            self.getBlockWithData = self.mc.getBlockWithData
-            self.setBlockWithData = self.mc.setBlock
+        if mc is not None:
+            if hasattr(Minecraft, 'getBlockWithNBT'):
+                self.getBlockWithData = self.mc.getBlockWithNBT
+                self.setBlockWithData = self.mc.setBlockWithNBT
+            else:
+                self.getBlockWithData = self.mc.getBlockWithData
+                self.setBlockWithData = self.mc.setBlock
         self.curVehicle = {}
         self.curRotation = 0
         self.curLocation = None
@@ -137,17 +150,176 @@ class Vehicle():
             literal_eval(result.group(1).replace("Block",""))
 
             self.baseAngle,self.highWater,self.baseVehicle = eval(result.group(1))
+            if self.highWater is not None and self.highWater < -1000000:
+                self.highWater = None
 
-        self.curLocation = None
+        self.curLocation = None       
+        
+    def getMonochromaticMesh(self,includeLiquid=False,_onlyBlock=None):
+        """
+        Make a monochromatic triangular mesh.
+        List of (normal,triangle), where normal is a coordinate triple, and triangle is a triple of
+        of coordinate triples.
+        """
+        
+        mesh = []
+        
+        def includes(xyz):
+            xyz = tuple(xyz)
+            if xyz in self.baseVehicle:
+                type = self.baseVehicle[xyz].id
+                if type == AIR.id:
+                    return False
+                if not includeLiquid and type in Vehicle.LIQUIDS:
+                    return False
+                return True
+            return False
+        
+        def getParallelFaces(coordinate):
+            faceDict = {}
+            for xyz in self.baseVehicle:
+                if (_onlyBlock is None and includes(xyz)) or (_onlyBlock is not None and self.baseVehicle[xyz] == _onlyBlock):
+                    for delta in (-1,1):
+                        neighbor = list(xyz)
+                        neighbor[coordinate] += delta
+                        if not includes(neighbor):
+                            planeCoordinate = xyz[coordinate] if delta < 0 else xyz[coordinate]+1
+                            if (delta,planeCoordinate) not in faceDict:
+                                faceDict[(delta,planeCoordinate)] = []
+                            otherCoordinates = ( xyz[(coordinate+1)%3], xyz[(coordinate+2)%3] )
+                            faceDict[(delta,planeCoordinate)].append(otherCoordinates)
+            return faceDict
+                            
+        def addPlane(coordinate, direction, planeCoordinate, faces):
+            """
+            Use a greedy optimization algorithm which looks for the largest
+            rectangle first.
+            """        
+        
+            if len(faces) == 0:
+                return
+                
+            topLeftU = min((f[0] for f in faces))    
+            topLeftV = min((f[1] for f in faces))    
+            bottomRightU = max((f[0] for f in faces))    
+            bottomRightV = max((f[1] for f in faces))    
+        
+            def makeXYZ(u,v):
+                if coordinate == 0:
+                    return (planeCoordinate, u, v)
+                elif coordinate == 1:
+                    return (v, planeCoordinate, u)
+                else:
+                    return (u, v, planeCoordinate)
+                    
+            if coordinate == 0:
+                normal = (direction, 0, 0)
+            elif coordinate == 1:
+                normal = (0, direction, 0)
+            elif coordinate == 2:
+                normal = (0, 0, direction)
 
-    def safeSetBlockWithData(self,pos,block):
+            while faces:
+                u1,v1 = faces.pop()
+                u2,v2 = u1+1,v1+1
+                if direction < 0:
+                    mesh.append((normal,(makeXYZ(u1, v1), makeXYZ(u1, v2), makeXYZ(u2, v1))))
+                    mesh.append((normal,(makeXYZ(u1, v2), makeXYZ(u2, v2), makeXYZ(u2, v1))))
+                else:
+                    mesh.append((normal,(makeXYZ(u2, v1), makeXYZ(u1, v2), makeXYZ(u1, v1))))
+                    mesh.append((normal,(makeXYZ(u2, v1), makeXYZ(u2, v2), makeXYZ(u1, v2))))
+        
+        for coordinate in range(3):
+            faceDict = getParallelFaces(coordinate)
+            for direction,planeCoordinate in faceDict:
+                addPlane(coordinate, direction, planeCoordinate, faceDict[(direction,planeCoordinate)])
+                
+        return mesh
+        
+    def getColorMesh(self, includeLiquid=False):
+        mesh = []
+        for block in set((self.baseVehicle[xyz] for xyz in self.baseVehicle)):
+            mesh.append((block, self.getMonochromaticMesh(includeLiquid=includeLiquid, _onlyBlock=block)))
+        return mesh
+        
+    def saveOpenSCAD(self, filename, includeLiquid=False, swapYZ=True):
+        with open(filename, "w") as f:
+            f.write("""
+blockScale = 5;
+sideOverlap = 0.2;
+sideLength = blockScale * (1+2*sideOverlap);            
+module block(x,y,z,r,g,b,a) {
+    color([r,g,b,a]) translate([x*blockScale,y*blockScale,z*blockScale]) cube(sideLength);
+}
+module object() {
+""")    
+            for xyz in self.baseVehicle:
+                block = self.baseVehicle[xyz]
+                if block.id != AIR.id and ( includeLiquid or not block.id in Vehicle.LIQUIDS ):
+                    rgba = block.getRGBA()
+                    f.write("block(%d,%d,%d,%.6g,%.6g,%.6g,%.6g);\n" %
+                        (xyz[0],xyz[1],xyz[2],rgba[0]/255.,rgba[1]/255.,rgba[2]/255.,rgba[3]/255.))
+            f.write("}\n")
+            if swapYZ:
+                f.write("rotate([90,0,0]) ");
+            f.write("object();\n");
+            
+    def saveMonochromaticSTL(self, filename, includeLiquid=False, swapYZ=False):
+        mesh = self.getMonochromaticMesh(includeLiquid=includeLiquid)
+        minY = 10000
+        for normal,triangle in mesh:
+            for vertex in triangle:
+                if vertex[1] < minY:
+                    minY = vertex[1]
+        with open(filename, "wb") as f:
+            f.write(pack("80s",''))
+            f.write(pack("<I",len(mesh)))
+            for normal,triangle in mesh:
+                if swapYZ:
+                    f.write(pack("<3f", normal[0], -normal[2], normal[1]))
+                    for vertex in triangle:
+                        f.write(pack("<3f", vertex[0], -vertex[2], vertex[1]-minY))
+                else:
+                    f.write(pack("<3f", normal[0], normal[1], normal[2]))
+                    for vertex in triangle:
+                        f.write(pack("<3f", vertex[0], vertex[1]-minY, vertex[2]))
+                f.write(pack("<H", 0))            
+
+    def saveColorSTL(self, filename, includeLiquid=False, swapYZ=False):
+        mesh = self.getColorMesh(includeLiquid=includeLiquid)
+        minY = 10000
+        numTriangles = 0
+        for block,monoMesh in mesh:
+            for normal,triangle in monoMesh:
+                numTriangles += 1
+                for vertex in triangle:
+                    if vertex[1] < minY:
+                        minY = vertex[1]
+        with open(filename, "wb") as f:
+            f.write(pack("80s",''))
+            f.write(pack("<I",numTriangles))
+            for block,monoMesh in mesh:
+                rgb = block.getRGBA()
+                color = 0x8000 | ( (rgb[0] >> 3) << 10 ) | ( (rgb[1] >> 3) << 5 ) | ( (rgb[2] >> 3) << 0 )
+                for normal,triangle in monoMesh:
+                    if swapYZ:
+                        f.write(pack("<3f", normal[0], -normal[2], normal[1]))
+                        for vertex in triangle:
+                            f.write(pack("<3f", vertex[0], -vertex[2], vertex[1]-minY))
+                    else:
+                        f.write(pack("<3f", normal[0], normal[1], normal[2]))
+                        for vertex in triangle:
+                            f.write(pack("<3f", vertex[0], vertex[1]-minY, vertex[2]))
+                    f.write(pack("<H", color))            
+
+    def safeSetBlockWithData(self,pos,b):
         """
         Draw block, making sure buttons are not depressed. This is to fix a glitch where launching 
         the vehicle script from a commandblock resulted in re-pressing of the button.
         """
-        if block.id == WOOD_BUTTON.id or block.id == STONE_BUTTON.id:
-            block = Block(block.id, block.data & ~0x08)
-        self.setBlockWithData(pos,block)
+        if b.id == WOOD_BUTTON.id or b.id == STONE_BUTTON.id:
+            b = Block(b.id, b.data & ~0x08)
+        self.setBlockWithData(pos,b)
 
     def scan(self,x0,y0,z0,angle=0,flash=True):
         positions = {}
@@ -159,9 +331,9 @@ class Vehicle():
         if seed is None:
             return {}
 
-        block = self.getBlockWithData(seed)
-        self.curVehicle = {seed:block}
-        if flash and block.id not in Vehicle.NEED_SUPPORT:
+        b = self.getBlockWithData(seed)
+        self.curVehicle = {seed:b}
+        if flash and b.id not in Vehicle.NEED_SUPPORT:
             self.mc.setBlock(seed,GLOWSTONE_BLOCK)
         newlyAdded = set(self.curVehicle.keys())
 
@@ -179,15 +351,15 @@ class Vehicle():
                             abs(pos[1]-y0) <= Vehicle.MAX_DISTANCE and
                             abs(pos[2]-z0) <= Vehicle.MAX_DISTANCE ):
                             searched.add(pos)
-                            block = self.getBlockWithData(pos)
-                            if block.id in Vehicle.TERRAIN:
-                                if ((block.id == WATER_STATIONARY.id or block.id == WATER_FLOWING.id) and 
-                                    self.highWater < pos[1]):
+                            b = self.getBlockWithData(pos)
+                            if b.id in Vehicle.TERRAIN:
+                                if ((b.id == WATER_STATIONARY.id or b.id == WATER_FLOWING.id) and 
+                                    (self.highWater is None or self.highWater < pos[1])):
                                     self.highWater = pos[1]
                             else:
-                                self.curVehicle[pos] = block
+                                self.curVehicle[pos] = b
                                 adding.add(pos)
-                                if flash and block.id not in Vehicle.NEED_SUPPORT:
+                                if flash and b.id not in Vehicle.NEED_SUPPORT:
                                     self.mc.setBlock(pos,GLOWSTONE_BLOCK)
             newlyAdded = adding
 
@@ -276,40 +448,40 @@ class Vehicle():
 
     # TODO: rotate blocks other than stairs and buttons
     @staticmethod
-    def rotateBlock(block,amount):
-        if block.id in Vehicle.STAIRS:
-            meta = block.data
-            return Block(block.id, (meta & ~0x03) |
+    def rotateBlock(b,amount):
+        if b.id in Vehicle.STAIRS:
+            meta = b.data
+            return Block(b.id, (meta & ~0x03) |
                          Vehicle.stairDirectionsClockwise[(Vehicle.stairToClockwise[meta & 0x03] + amount) % 4])
-        elif block.id in Vehicle.LADDERS_FURNACES_CHESTS_SIGNS_ETC:
-            high = block.data & 0x08
-            meta = block.data & 0x07
+        elif b.id in Vehicle.LADDERS_FURNACES_CHESTS_SIGNS_ETC:
+            high = b.data & 0x08
+            meta = b.data & 0x07
             if meta < 2:
-                return block
-            block = copy(block)
-            block.data = high | Vehicle.chestDirectionsClockwise[(Vehicle.chestToClockwise[meta] + amount) % 4]
-            return block
-        elif block.id == STONE_BUTTON.id or block.id == WOOD_BUTTON.id:
-            direction = block.data & 0x07
+                return b
+            b = copy(b)
+            b.data = high | Vehicle.chestDirectionsClockwise[(Vehicle.chestToClockwise[meta] + amount) % 4]
+            return b
+        elif b.id == STONE_BUTTON.id or b.id == WOOD_BUTTON.id:
+            direction = b.data & 0x07
             if direction < 1 or direction > 4:
-                return block
+                return b
             direction = 1 + Vehicle.stairDirectionsClockwise[(Vehicle.stairToClockwise[direction-1] + amount) % 4]
-            return Block(block.id, (block.data & ~0x07) | direction)
-        elif block.id in Vehicle.REDSTONE_COMPARATORS_REPEATERS:
-            return Block(block.id, (block.data & ~0x03) | (((block.data & 0x03) + amount) & 0x03))
-        elif block.id == 96 or block.id == 167:
+            return Block(b.id, (b.data & ~0x07) | direction)
+        elif b.id in Vehicle.REDSTONE_COMPARATORS_REPEATERS:
+            return Block(b.id, (b.data & ~0x03) | (((b.data & 0x03) + amount) & 0x03))
+        elif b.id == 96 or b.id == 167:
             # trapdoors
-            meta = block.data
-            return Block(block.id, (meta & ~0x03) |
+            meta = b.data
+            return Block(b.id, (meta & ~0x03) |
                          Vehicle.stairDirectionsClockwise[(Vehicle.stairToClockwise[meta & 0x03] - amount) % 4])
-        elif block.id in Vehicle.DOORS:
-            meta = block.data
+        elif b.id in Vehicle.DOORS:
+            meta = b.data
             if meta & 0x08:
-                return block
+                return b
             else:
-                return Block(block.id, (meta & ~0x03) | (((meta & 0x03) + amount) & 0x03))
+                return Block(b.id, (meta & ~0x03) | (((meta & 0x03) + amount) & 0x03))
         else:
-            return block
+            return b
 
     @staticmethod
     def rotate(dict, amount):
@@ -356,12 +528,12 @@ class Vehicle():
             else:
                 erase[pos] = self.curVehicle[pos]
         for pos in newVehicle:
-            block = newVehicle[pos]
-            if pos not in self.curVehicle or self.curVehicle[pos] != block:
-                todo[pos] = block
+            b = newVehicle[pos]
+            if pos not in self.curVehicle or self.curVehicle[pos] != b:
+                todo[pos] = b
                 if pos not in self.curVehicle and self.nondestructive:
                     curBlock = self.getBlockWithData(pos)
-                    if curBlock == block:
+                    if curBlock == b:
                         del todo[pos]
                     self.saved[pos] = curBlock
                     erase[pos] = curBlock
@@ -401,10 +573,11 @@ if __name__ == '__main__':
             path = getLoadPath(directory, "py")
             if not path:
                 minecraft.postToChat('Canceled')
-                return
+                return None
 
         vehicle.load(path)
         minecraft.postToChat('Vehicle loaded from '+path)
+        return path
 
     def chatHelp():
         minecraft.postToChat("vlist: list vehicles")
@@ -447,10 +620,10 @@ if __name__ == '__main__':
         for x in range(corner1[0],corner2[0]+1):
             for y in range(corner1[1],corner2[1]+1):
                 for z in range(corner1[2],corner2[2]+1):
-                    block = vehicle.getBlockWithData(x,y,z)
-                    if block.id != AIR.id and block.id != WATER_STATIONARY.id and block.id != WATER_FLOWING.id:
+                    b = vehicle.getBlockWithData(x,y,z)
+                    if b.id != AIR.id and b.id != WATER_STATIONARY.id and b.id != WATER_FLOWING.id:
                         pos = (x-basePos.x,y-basePos.y,z-basePos.z)
-                        dict[pos] = block
+                        dict[pos] = b
         minecraft.postToChat("Found "+str(len(dict))+" blocks")
         vehicle.setVehicle(dict, startRot)
 
@@ -459,11 +632,16 @@ if __name__ == '__main__':
     flash = True
     doLoad = False
     doSave = False
+    doSTL = False
+    doOpenSCAD = False
     scanRectangularPrism = False
     exitAfterDraw = False
     noInitialRotate = False
 
     if len(sys.argv)>1:
+        m = re.match(".*D([0-9]+).*",sys.argv[1])
+        if m:
+            Vehicle.MAX_DISTANCE = int(m.group(1))            
         for x in sys.argv[1]:
             if x == 'b':
                 bubble = True
@@ -479,12 +657,50 @@ if __name__ == '__main__':
             elif x == 'l':
                 loadName = sys.argv[2] if len(sys.argv)>2 else None
                 doLoad = True
+            elif x == 'm':
+                loadName = sys.argv[2] if len(sys.argv)>2 else None
+                doSTL = True
+                stlColor = False
+            elif x == 'o':
+                loadName = sys.argv[2] if len(sys.argv)>2 else None
+                doOpenSCAD = True
+            elif x == 'M':
+                loadName = sys.argv[2] if len(sys.argv)>2 else None
+                doSTL = True
+                stlColor = True
             elif x == 'L':
                 loadName = sys.argv[2] if len(sys.argv)>2 else None
                 doLoad = True
                 exitAfterDraw = True
             elif x == 'r':
                 scanRectangularPrism = True
+                
+    if doSTL:
+        minecraft = lambda: None
+        minecraft.postToChat = print
+        vehicle = Vehicle()
+        path = load(loadName)
+        if path is not None:
+            pre, ext = os.path.splitext(path)
+            out = pre + ".stl"
+            print("Saving "+out)
+            if stlColor:
+                vehicle.saveColorSTL(out)
+            else:
+                vehicle.saveMonochromaticSTL(out)            
+        exit()
+
+    if doOpenSCAD:
+        minecraft = lambda: None
+        minecraft.postToChat = print
+        vehicle = Vehicle()
+        path = load(loadName)
+        if path is not None:
+            pre, ext = os.path.splitext(path)
+            out = pre + ".scad"
+            print("Saving "+out)
+            vehicle.saveOpenSCAD(out)
+        exit()
 
     minecraft = Minecraft()
 

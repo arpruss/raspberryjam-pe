@@ -1,5 +1,10 @@
+from __future__ import print_function
 #
-# Code under the MIT license by Alexander Pruss
+# WARNING: If you're running RJM on a server, do NOT include this script server-side for security reasons.
+#
+
+#
+# Code by Alexander Pruss and under the MIT license
 #
 # This script only works on Raspberry Jam
 #
@@ -21,11 +26,13 @@ def inputLine(prompt):
         chats = mc.events.pollChatPosts()
         for c in chats:
             if c.entityId == playerId:
-                print c.message
+                print(c.message)
                 if c.message == 'quit':
                     return 'quit()'
                 elif c.message == ' ':
                     return ''
+                elif "__" in c.message:
+                    sys.exit();
                 else:
                     return c.message
         time.sleep(0.2)

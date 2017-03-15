@@ -1,31 +1,24 @@
 #
-# Code under the MIT license by Alexander Pruss
+# Code by Alexander Pruss and under the MIT license
 #
 
-from mc import *
+from mine import *
 import text
 import datetime
 import time
 import sys
 import fonts
-import ast
 
-foreground = SEA_LANTERN # this needs Minecraft 1.8
-background = AIR
-
-def parseBlock(s):
-    try:
-        return ast.literal_eval(s)
-    except:
-        return globals()[s.upper()]
+foreground = block.SEA_LANTERN # this needs Minecraft 1.8
+background = block.AIR
 
 try:
-    foreground = parseBlock(sys.argv[1])
+    foreground = Block.byName(sys.argv[1])
 except:
     pass
 
 try:
-    background = parseBlock(sys.argv[2])
+    background = Block.byName(sys.argv[2])
 except:
     pass
 

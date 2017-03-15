@@ -1,13 +1,13 @@
 #
-# Code under the MIT license by Alexander Pruss
+# Code by Alexander Pruss and under the MIT license
 #
 
 import lsystem
-from mcturtle import *
+from mineturtle import *
 
 t = Turtle()
 t.pendelay(0)
-t.penblock(WOOD)
+t.penblock(block.WOOD)
 t.turtle(None)
 t.pitch(90)
 
