@@ -332,17 +332,18 @@ function procCmd(cmdLine) {
             Entity.removeEffect(playerId,MobEffect.nightVision);
         }
     }
-    else if ((cmds[0] == "py" || cmds[0] == "python") && cmds.length >= 2) {
+    else if ((cmds[0] == "py" || cmds[0] == "python" || cmds[0] == "py3" || cmds[0] == "p3" || cmds[0] == "python3") && cmds.length >= 2) {
+        var v3 = cmds[0].includes("3") ? "3" : "";
         var context = com.mojang.minecraftpe.MainActivity.currentMainActivity.get();
         var intent = new android.content.Intent();
-        intent.setClassName("com.hipipal.qpyplus","com.hipipal.qpyplus.MPyApi");
-        intent.setAction("com.hipipal.qpyplus.action.MPyApi");
+        intent.setClassName("org.qpython.qpy"+v3,"org.qpython.qpylib.MPyApi");
+        intent.setAction("org.qpython.qpy"+v3+".action.MPyApi");
         var bundle = new android.os.Bundle();
         bundle.putString("app", "myappid");
         bundle.putString("act", "onPyApi");
         bundle.putString("flag", "onQPyExec");
         bundle.putString("param", "");
-        dir = android.os.Environment.getExternalStorageDirectory().getAbsolutePath() + "/com.hipipal.qpyplus/scripts";
+        dir = android.os.Environment.getExternalStorageDirectory().getAbsolutePath() + "/qpython/scripts"+v3;
         cmds.shift();
         cmds[0] = dir+"/"+cmds[0]+".py";
         var script = "import sys\n"+
@@ -350,7 +351,7 @@ function procCmd(cmdLine) {
              "sys.path.append('" + dir + "')\n"+
              "os.chdir('" + dir + "')\n"+
              "sys.argv = [" + quotedList(cmds) + "]\n"+
-             "execfile('" + cmds[0] + "')\n";
+             "exec(open('" + cmds[0] + "').read())\n";
         bundle.putString("pycode",script);
         intent.putExtras(bundle);
         context.startActivity(intent);
