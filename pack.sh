@@ -8,6 +8,8 @@ rm p2/scripts/neurosky.py p2/scripts/writebook.py
 sed --in-place='' 's/^minecraftType.*/minecraftType = MINECRAFT_POCKET_EDITION/' p2/scripts/mcpi/settings.py
 echo 'address = "127.0.0.1"' > p2/scripts/server.py
 echo 'is_pi = False' >> p2/scripts/server.py
+rm -rf p2/scripts3
+cp -r p2/scripts p2/scripts3
 chmod -R u+rw p2
 rm packager/assets/*.zip
 (cd p2 && zip -9r ../packager/assets/py *)

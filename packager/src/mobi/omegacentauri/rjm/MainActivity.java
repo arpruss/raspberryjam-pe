@@ -184,11 +184,11 @@ public class MainActivity extends Activity {
     	String qpythonPackage;
 //    	if (options.getInt(PREF_PYTHON_VERSION, PYTHON2) == PYTHON2) {
     		qpythonReadable = "QPython";
-    		qpythonPackage = "com.hipipal.qpyplus";
+    		qpythonPackage = "org.qpython.qpy";
 //    	}
 //    	else {
 //    		qpythonReadable = "QPython3";
-//    		qpythonPackage = "com.hipipal.qpy3";
+//    		qpythonPackage = "org.qpython.qpy3";
 //    	}
     	
 		try {
