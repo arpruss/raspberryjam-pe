@@ -7,9 +7,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.ActivityManager.RunningTaskInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -56,7 +59,7 @@ public class RenderSchematic extends Activity {
 			@Override
 			public void run() {
 				Intent i = null;
-				PackageManager pm = context.getPackageManager();
+				/*				PackageManager pm = context.getPackageManager();
 				
 				try {
 					if (null != pm.getPackageInfo("net.zhuoweizhang.mcpelauncher.pro", 0)) {
@@ -67,20 +70,20 @@ public class RenderSchematic extends Activity {
 				if (i==null) {
 					try {
 						if (null != pm.getPackageInfo("net.zhuoweizhang.mcpelauncher", 0)) {
-							i = pm.getLaunchIntentForPackage("net.zhuoweizhang.mcpelauncher.pro");
+							i = pm.getLaunchIntentForPackage("net.zhuoweizhang.mcpelauncher");
 						}
 					} catch (NameNotFoundException e) {
 					}
 				}
+*/
 				if (i == null) {
 					context.finish();
 				}
 				else {
 					i.addCategory(Intent.CATEGORY_LAUNCHER);
 					i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-					log("intent "+i);
 					context.startActivity(i);
-				}
+				} 
 			}});
 	}
 
@@ -217,7 +220,7 @@ public class RenderSchematic extends Activity {
 			mcOut = new PrintWriter(s.getOutputStream(), true);
 			mcIn = new BufferedReader(new InputStreamReader(s.getInputStream()));
 			sendToMinecraft(mcOut, mcIn, schematic);
-			safeToast(RenderSchematic.this, "Schematic sent!");
+			safeToast(RenderSchematic.this, "Schematic sent! Switch back to Minecraft now.");
 		}
 		catch(Exception e) {
 			Log.v("rjm", ""+e);
